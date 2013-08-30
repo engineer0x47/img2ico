@@ -21,16 +21,101 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "load_img.h"
-#include "parse_config.h"
+#include <iostream>
+#include <fstream>
 
 #pragma once
+
+#ifdef WIN32
+#define _SZ_PATHSEPARATOR "//"
+#else
+#define _SZ_PATHSEPARATOR "/\"
+#endif
 
 #ifndef __IMG2ICO_H__
 #define __IMG2ICO_H__
 
+#define _PNG_HEADER_DWORD	0x89504E47
+#define _PNG_CHUNK_IHDR		0x49484452
+#define _PNG_CHUNK_PLTE		0x504C5445
+#define _BMP_HEADER_WORD	0x4D42
+#define _BMP_BI_RGB			0
+
+enum F_TYPE
+{
+	T_ICO = 1,
+	T_CUR = 2,
+	T_ANI = 3
+};
+
+enum I_TYPE
+{
+	I_ICON		= 1,
+	I_RAW		= 0,
+	I_SEQUENCE	= 2
+};
+
+//ANI: Cursor name, Artist information, default frame rate, sequence info, cursor hotspot, individual frames in ico format, individual frame rates
+//CUR: cursor hotspot
 
 
+struct sFileInfo
+{
+	int	NumFrames;	// Also number of images for ICO / CUR
+	int	NumSteps;
+	int	Width;
+	int	Height;
+	int	BitCount;
+	int	DisplayRate;
+	int	Flags;
+};
 
+struct sImage
+{
+	__int8	Width;
+	__int8	Height;
+	__int8	Colors;
+	__int8	Reserved;
+	__int16	Planes_Hcor;
+	__int16	BPP_Vcor;
+	__int32	Size;
+	__int32 offset;
+
+	int*	imagedata;
+
+	sImage() : Width(0), Height(0), Colors(0), Reserved(0), Planes_Hcor(0), BPP_Vcor(0), Size(0), offset(0), imagedata(nullptr){}
+};
+
+union uBuffer
+{
+	__int8	byte[4];
+	__int16	word[2];
+	__int32	dword;
+};
+
+
+class CIMG2ICO
+{
+protected:
+	std::string		m_szPath;
+	sFileInfo		m_sFileInfo;
+
+	bool			m_bSequenceData;
+	bool			m_bUseRawData;
+
+	sImage*			m_sImageArray;
+
+	int	LoadImage(char* filename, struct sImage* imageout);
+
+public:
+	CIMG2ICO(char* path = "");
+	~CIMG2ICO();
+
+	int		ReadInputFiles();
+	void	SetDirectoryPath(char* path);
+	int		WriteFile(char* outfile = "Icon.ico", int type = T_ICO);
+};
+
+std::fstream& operator<<(std::fstream &out, sImage image);
 
 #endif

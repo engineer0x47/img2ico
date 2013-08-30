@@ -60,6 +60,7 @@
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -92,14 +93,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\img2ico.cpp" />
-    <ClCompile Include="..\..\src\load_img.cpp" />
-    <ClCompile Include="..\..\src\parse_config.cpp" />
-    <ClCompile Include="..\..\src\win32.cpp" />
+    <ClCompile Include="..\..\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\img2ico.h" />
-    <ClInclude Include="..\..\src\load_img.h" />
-    <ClInclude Include="..\..\src\parse_config.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

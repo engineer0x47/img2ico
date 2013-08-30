@@ -21,17 +21,41 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <iostream>
+#include <fstream>
 
 #pragma once
 
 #ifndef __LOAD_IMG_H__
 #define __LOAD_IMG_H__
 
+#define _PNG_HEADER_DWORD	0x89504E47
+#define _PNG_CHUNK_IHDR		0x49484452
+#define _PNG_CHUNK_PLTE		0x504C5445
+#define _BMP_HEADER_WORD	0x4D42
+#define _BMP_BI_RGB			0
 
+struct sImage
+{
+	__int8	Width;
+	__int8	Height;
+	__int8	Colors;
+	__int8	Reserved;
+	__int16	Planes_Hcor;
+	__int16	BPP_Vcor;
+	__int32	Size;
+	__int32 offset;
 
+	int*	imagedata;
+};
 
+union uBuffer
+{
+	__int8	byte[4];
+	__int16	word[2];
+	__int32	dword;
+};
 
+int	LoadImage(char* filename, struct sImage* imageout);
 
 
 #endif

@@ -21,11 +21,22 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <Windows.h>
-
 #include "img2ico.h"
 
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 int main(int argc, char* argv[])
+
 {
+	// Read input parameters
+	
+	CIMG2ICO converter;
+
+	converter.SetDirectoryPath("");
+	converter.ReadInputFiles();
+	converter.WriteFile();
+
 	return 0;
 }
