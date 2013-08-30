@@ -30,13 +30,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int main(int argc, char* argv[])
 
 {
+	int retval = 0;
+
 	// Read input parameters
 	
-	CIMG2ICO converter;
+	CIMG2ICO converter("");
 
-	converter.SetDirectoryPath("");
-	converter.ReadInputFiles();
-	converter.WriteFile();
+	retval += converter.ReadInputFiles();
+	retval += converter.WriteFile();
 
-	return 0;
+	return retval;
 }

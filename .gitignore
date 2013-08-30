@@ -141,6 +141,8 @@ ModelManifest.xml
 bin/*
 intermediate/*
 
+#MS Debug run output icon
+build/vs2012/*.ico
 
 # =========================
 # Windows detritus

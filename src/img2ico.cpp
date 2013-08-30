@@ -108,8 +108,8 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 	}
 	else
 	{
-		retval = 1;
-		printf("failed to open bmp file");
+		m_sFileInfo.NumFrames = 0;
+		retval = -1;
 	}
 
 	return retval;
@@ -129,14 +129,17 @@ int		CIMG2ICO::ReadInputFiles()
 
 	// Load images into sImages
 
+	// Populate all class variables
+
+
+
+	
 	//// Start test code
 	m_sImageArray = new sImage;
 	
 	retval = LoadImage("0.bmp", &m_sImageArray[0]);	// temporary code
 
 	//// End test code
-
-	// Populate all class variables
 
 
 	return retval;
@@ -153,64 +156,66 @@ int		CIMG2ICO::WriteFile(char* outfile, int type)
 	fstream	file;
 	string	outfilename;
 		
-	if ((m_szPath.length()) != 0)
+	if (m_sFileInfo.NumFrames == 0)
 	{
-		outfilename.assign(m_szPath);
-		outfilename.append(_SZ_PATHSEPARATOR);
-	}
-	outfilename.append(outfile);
-
-	file.open(outfilename.data(), std::ios::out);
-
-	if (file.is_open())
-	{
-		// Write file header
-		switch(type)
+		if ((m_szPath.length()) != 0)
 		{
-		case T_ANI:
-			file << "ACON" << ((__int32)(32)) << ((__int32)(m_sFileInfo.NumFrames)) << ((__int32)(m_sFileInfo.NumSteps)) << ((__int32)(m_sFileInfo.Width)) << ((__int32)(m_sFileInfo.Height));
-			file << ((__int32)(m_sFileInfo.BitCount)) << ((__int32)(1)) << ((__int32)(m_sFileInfo.DisplayRate)) << ((__int32)(m_sFileInfo.Flags)) << "fram";
-			retval = 1;
-			break;
-		default:
-		case T_CUR:
-		case T_ICO:
-			file << ((__int16)(0)) << ((__int16)(type)) << ((__int16)m_sFileInfo.NumFrames) << ((__int16)(m_sFileInfo.NumFrames * 16));
+			outfilename.assign(m_szPath);
+			outfilename.append(_SZ_PATHSEPARATOR);
 		}
+		outfilename.append(outfile);
 
-		// Write file body
-		switch(type)
+		file.open(outfilename.data(), ios::out);
+
+		if (file.is_open())
 		{
-		case T_ANI:
-			// Write frames
+			// Write file header
+			switch(type)
+			{
+			case T_ANI:
+				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sFileInfo.NumFrames)) << ((__int32)(m_sFileInfo.NumSteps)) << ((__int32)(m_sFileInfo.Width)) << ((__int32)(m_sFileInfo.Height));
+				file << ((__int32)(m_sFileInfo.BitCount)) << ((__int32)(1)) << ((__int32)(m_sFileInfo.DisplayRate)) << ((__int32)(m_sFileInfo.Flags)) << "fram";
+				retval = 1;
+				break;
+			default:
+			case T_CUR:
+			case T_ICO:
+				file << ((__int16)(0)) << ((__int16)(type)) << ((__int16)m_sFileInfo.NumFrames) << ((__int16)(m_sFileInfo.NumFrames * 16));
+			}
+
+			// Write file body
+			switch(type)
+			{
+			case T_ANI:
+				// Write frames
 			
-			if (m_bSequenceData == true)
-			{
-				// write sequence data
+				if (m_bSequenceData == true)
+				{
+					// write sequence data
+				}
+				retval = 1;
+				break;
+			default:
+			case T_CUR:
+			case T_ICO:
+				// Build image directory
+				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
+				{
+					file << m_sImageArray[i];
+				}
+				// Write images
+				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
+				{
+					file << m_sImageArray[i].imagedata;
+				}
 			}
-			retval = 1;
-			break;
-		default:
-		case T_CUR:
-		case T_ICO:
-			// Build image directory
-			for (int i = 0; i < m_sFileInfo.NumFrames; i++)
-			{
-				file << m_sImageArray[i];
-			}
-			// Write images
-			for (int i = 0; i < m_sFileInfo.NumFrames; i++)
-			{
-				file << m_sImageArray[i].imagedata;
-			}
-		}
 
-		file.close();
-	}
-	else
-	{
-		retval = 1;
-		printf("failed to open icon file");
+			file.close();
+		}
+		else
+		{
+			retval = 1;
+		}
 	}
 
 	return retval;
