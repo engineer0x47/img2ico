@@ -37,6 +37,7 @@ CIMG2ICO::CIMG2ICO(char* path)
 	m_sFileInfo.Height = 0;
 	m_sFileInfo.NumFrames = 1;
 	m_sFileInfo.NumSteps = 1;
+	m_sFileInfo.Width = 0;
 	m_sFileInfo.Flags = 0 | I_ICON;
 }
 
@@ -57,15 +58,16 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 	fstream imagefile;
 
 	buffer.dword = 0;
-	imagefile.open(filename, ios::in);
+	imagefile.open(filename, ios::in | ios::binary);
 
 	if (imagefile.is_open() == true)
 	{
-		imagefile >> buffer.dword;
+		imagefile.read(&buffer.byte[0], 4);
 
 		if (buffer.dword == _PNG_HEADER_DWORD)
 		{
-			imagefile >> buffer.dword >> buffer.dword;
+			imagefile.read(&buffer.byte[0], 4);
+			imagefile.read(&buffer.byte[0], 4);
 			
 			if (buffer.dword == _PNG_CHUNK_IHDR)
 			{
@@ -82,17 +84,14 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 		}
 		else if (buffer.word[0] == _BMP_HEADER_WORD)
 		{
-			__int32 DataOffset = 0;
+			imagefile >> imageout;
 
-			imagefile >> buffer.dword >> buffer.dword >> DataOffset >> imageout->Width >> imageout->Height >> buffer.word[0] >> imageout->BPP_Vcor >> buffer.dword;
-
-			if (buffer.dword == _BMP_BI_RGB)
+			if (imageout->Size == _BMP_BI_RGB)
 			{
-				imageout->Size = (imageout->BPP_Vcor * imageout->Height * imageout->Width);
-				//int imgsize = imagefile.tellg();
-				//imgsize -= DataOffset;
-				imagefile.seekg(DataOffset, imagefile.beg);
-				imageout->imagedata = new int[imageout->Size];
+				imageout->Size = (imageout->Height * imageout->Width * imageout->BPP_Vcor / 8);
+				imagefile.seekg(imageout->Offset, imagefile.beg);
+				imageout->imgbytes = new char[imageout->Size];
+				imagefile.read(imageout->imgbytes, sizeof(imageout->imgbytes));
 			}
 			else
 			{
@@ -150,13 +149,13 @@ void	CIMG2ICO::SetDirectoryPath(char* path)
 	m_szPath.assign(path);
 }
 
-int		CIMG2ICO::WriteFile(char* outfile, int type)
+int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
 {
 	int		retval = 0;
 	fstream	file;
 	string	outfilename;
 		
-	if (m_sFileInfo.NumFrames == 0)
+	if (m_sFileInfo.NumFrames != 0)
 	{
 		if ((m_szPath.length()) != 0)
 		{
@@ -165,7 +164,7 @@ int		CIMG2ICO::WriteFile(char* outfile, int type)
 		}
 		outfilename.append(outfile);
 
-		file.open(outfilename.data(), ios::out);
+		file.open(outfilename.data(), ios::out | ios::binary);
 
 		if (file.is_open())
 		{
@@ -173,14 +172,24 @@ int		CIMG2ICO::WriteFile(char* outfile, int type)
 			switch(type)
 			{
 			case T_ANI:
+				uBuffer aBuf[32];
+
 				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sFileInfo.NumFrames)) << ((__int32)(m_sFileInfo.NumSteps)) << ((__int32)(m_sFileInfo.Width)) << ((__int32)(m_sFileInfo.Height));
 				file << ((__int32)(m_sFileInfo.BitCount)) << ((__int32)(1)) << ((__int32)(m_sFileInfo.DisplayRate)) << ((__int32)(m_sFileInfo.Flags)) << "fram";
 				retval = 1;
+				file.write(&aBuf[0].byte[0], sizeof(aBuf));
 				break;
 			default:
 			case T_CUR:
 			case T_ICO:
-				file << ((__int16)(0)) << ((__int16)(type)) << ((__int16)m_sFileInfo.NumFrames) << ((__int16)(m_sFileInfo.NumFrames * 16));
+				uBuffer buf[2];
+
+				buf[0].word[0] = 0;
+				buf[0].word[1] = type;
+				buf[1].word[0] = m_sFileInfo.NumFrames;
+
+				file.write(&buf[0].byte[0], 6);
+
 			}
 
 			// Write file body
@@ -201,12 +210,13 @@ int		CIMG2ICO::WriteFile(char* outfile, int type)
 				// Build image directory
 				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
 				{
+					m_sImageArray[i].Offset = (i == 0) ? 22 : (m_sImageArray[i-1].Offset + m_sImageArray[i-1].Size);
 					file << m_sImageArray[i];
 				}
 				// Write images
 				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
 				{
-					file << m_sImageArray[i].imagedata;
+					file.write(m_sImageArray->imgbytes, m_sImageArray->Size);
 				}
 			}
 
@@ -221,9 +231,35 @@ int		CIMG2ICO::WriteFile(char* outfile, int type)
 	return retval;
 }
 
+std::fstream& operator>>(std::fstream &in, sImage* image)
+{
+	uBuffer buf[8];
+
+	in.read(&buf[0].byte[2], sizeof(buf)-2);
+
+	image->Offset		= buf[2].dword;
+	image->Width		= buf[4].dword;
+	image->Height		= buf[5].dword;
+	image->BPP_Vcor		= buf[6].word[1];
+	image->Size			= buf[7].dword;
+	
+	return in;
+}
+
 std::fstream& operator<<(std::fstream &out, const sImage image)
 {
-	out << image.Width << image.Height << image.Colors << image.Reserved << image.Planes_Hcor << image.BPP_Vcor << image.Size;
+	uBuffer buf[4];
+
+	buf[0].byte[0]	= image.Width;
+	buf[0].byte[1]	= image.Height;
+	buf[0].byte[2]	= image.Colors;
+	buf[0].byte[3]	= image.Reserved;
+	buf[1].word[0]	= image.Planes_Hcor;
+	buf[1].word[1]	= image.BPP_Vcor;
+	buf[2].dword	= image.Size;
+	buf[3].dword	= image.Offset;
 	
+	out.write(&buf[0].byte[0], sizeof(buf));
+
 	return out;
 }

@@ -79,11 +79,11 @@ struct sImage
 	__int16	Planes_Hcor;
 	__int16	BPP_Vcor;
 	__int32	Size;
-	__int32 offset;
+	__int32 Offset;
 
-	int*	imagedata;
+	char*	imgbytes;
 
-	sImage() : Width(0), Height(0), Colors(0), Reserved(0), Planes_Hcor(0), BPP_Vcor(0), Size(0), offset(0), imagedata(nullptr){}
+	sImage() : Width(0), Height(0), Colors(0), Reserved(0), Planes_Hcor(0), BPP_Vcor(0), Size(0), Offset(0), imgbytes(nullptr){}
 };
 
 union uBuffer
@@ -113,9 +113,10 @@ public:
 
 	int		ReadInputFiles();
 	void	SetDirectoryPath(char* path);
-	int		WriteFile(char* outfile = "Icon.ico", int type = T_ICO);
+	int		WriteOutputFile(char* outfile = "Icon.ico", int type = T_ICO);
 };
 
+std::fstream& operator>>(std::fstream &in, sImage* image);
 std::fstream& operator<<(std::fstream &out, sImage image);
 
 #endif
