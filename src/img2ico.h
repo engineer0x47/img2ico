@@ -72,18 +72,25 @@ struct sFileInfo
 
 struct sImage
 {
-	__int8	Width;
-	__int8	Height;
-	__int8	Colors;
-	__int8	Reserved;
-	__int16	Planes_Hcor;
-	__int16	BPP_Vcor;
-	__int32	Size;
-	__int32 Offset;
+	union hdr
+	{
+		struct s
+		{
+			__int8	Width;
+			__int8	Height;
+			__int8	Colors;
+			__int8	Reserved;
+			__int16	Planes_Hcor;
+			__int16	BPP_Vcor;
+			__int32	Size;
+			__int32 Offset;
+		} s;
+		char	bytes[16];
+	} hdr;
 
 	char*	imgbytes;
 
-	sImage() : Width(0), Height(0), Colors(0), Reserved(0), Planes_Hcor(0), BPP_Vcor(0), Size(0), Offset(0), imgbytes(nullptr){}
+	sImage();
 };
 
 union uBuffer
@@ -99,21 +106,23 @@ class CIMG2ICO
 protected:
 	std::string		m_szPath;
 	sFileInfo		m_sFileInfo;
-
+	int				m_iType;
 	bool			m_bSequenceData;
 	bool			m_bUseRawData;
 
 	sImage*			m_sImageArray;
 
 	int	LoadImage(char* filename, struct sImage* imageout);
+	int	ReadConfigFile(void);
 
 public:
-	CIMG2ICO(char* path = "");
+	CIMG2ICO(char* path = "", int type = T_ICO);
 	~CIMG2ICO();
 
 	int		ReadInputFiles();
 	void	SetDirectoryPath(char* path);
-	int		WriteOutputFile(char* outfile = "Icon.ico", int type = T_ICO);
+	void	SetOutputFileType(int type);
+	int		WriteOutputFile(char* outfile = "Icon.ico");
 };
 
 std::fstream& operator>>(std::fstream &in, sImage* image);

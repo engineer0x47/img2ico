@@ -25,13 +25,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
-CIMG2ICO::CIMG2ICO(char* path)
+sImage::sImage()
+{
+	imgbytes = nullptr;
+
+	for (int i = 0; i < 16; i++)
+	{
+		hdr.bytes[i] = 0;
+	}
+}
+
+CIMG2ICO::CIMG2ICO(char* path, int type)
 {
 	m_szPath.assign(path);
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
-
+	m_iType = type;
 	m_sFileInfo.BitCount = 0;
 	m_sFileInfo.DisplayRate = 0;
 	m_sFileInfo.Height = 0;
@@ -86,11 +96,11 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 		{
 			imagefile >> imageout;
 
-			if (imageout->Size == _BMP_BI_RGB)
+			if (imageout->hdr.s.Size == _BMP_BI_RGB)
 			{
-				imageout->Size = (imageout->Height * imageout->Width * imageout->BPP_Vcor / 8);
-				imagefile.seekg(imageout->Offset, imagefile.beg);
-				imageout->imgbytes = new char[imageout->Size];
+				imageout->hdr.s.Size = (imageout->hdr.s.Height * imageout->hdr.s.Width * imageout->hdr.s.BPP_Vcor / 8);
+				imagefile.seekg(imageout->hdr.s.Offset, imagefile.beg);
+				imageout->imgbytes = new char[imageout->hdr.s.Size];
 				imagefile.read(imageout->imgbytes, sizeof(imageout->imgbytes));
 			}
 			else
@@ -114,6 +124,38 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 	return retval;
 }
 
+int	CIMG2ICO::ReadConfigFile(void)
+{
+	int		retval = 0;
+	string	szConfigFilename;
+	fstream	c_file;
+
+	if ((m_szPath.length()) != 0)
+	{
+		szConfigFilename.assign(m_szPath);
+		szConfigFilename.append(_SZ_PATHSEPARATOR);
+	}
+	
+	szConfigFilename.append("config");
+	c_file.open(szConfigFilename.data(), ios::in);
+
+	if (c_file.is_open())
+	{
+		// Read config parameters into m_sFileInfo
+
+		c_file.close();
+	}
+	else
+	{
+		if (m_iType == T_ANI)
+		{
+			retval = 40;
+		}
+	}
+
+	return retval;
+}
+
 int		CIMG2ICO::ReadInputFiles()
 {
 	int retval = 0;
@@ -121,6 +163,7 @@ int		CIMG2ICO::ReadInputFiles()
 	// Find out which directory we are in
 
 	// Read config file if present
+	ReadConfigFile();
 
 	// Find out how many images are in the directory (PNG or BMP only)
 
@@ -149,27 +192,32 @@ void	CIMG2ICO::SetDirectoryPath(char* path)
 	m_szPath.assign(path);
 }
 
-int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
+void	CIMG2ICO::SetOutputFileType(int type)
+{
+	m_iType = type;
+}
+
+int		CIMG2ICO::WriteOutputFile(char* outfile)
 {
 	int		retval = 0;
 	fstream	file;
-	string	outfilename;
+	string	szOutFilename;
 		
 	if (m_sFileInfo.NumFrames != 0)
 	{
 		if ((m_szPath.length()) != 0)
 		{
-			outfilename.assign(m_szPath);
-			outfilename.append(_SZ_PATHSEPARATOR);
+			szOutFilename.assign(m_szPath);
+			szOutFilename.append(_SZ_PATHSEPARATOR);
 		}
-		outfilename.append(outfile);
+		szOutFilename.append(outfile);
 
-		file.open(outfilename.data(), ios::out | ios::binary);
+		file.open(szOutFilename.data(), ios::out | ios::binary);
 
 		if (file.is_open())
 		{
 			// Write file header
-			switch(type)
+			switch(m_iType)
 			{
 			case T_ANI:
 				uBuffer aBuf[32];
@@ -185,7 +233,7 @@ int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
 				uBuffer buf[2];
 
 				buf[0].word[0] = 0;
-				buf[0].word[1] = type;
+				buf[0].word[1] = m_iType;
 				buf[1].word[0] = m_sFileInfo.NumFrames;
 
 				file.write(&buf[0].byte[0], 6);
@@ -193,7 +241,7 @@ int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
 			}
 
 			// Write file body
-			switch(type)
+			switch(m_iType)
 			{
 			case T_ANI:
 				// Write frames
@@ -210,14 +258,23 @@ int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
 				// Build image directory
 				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
 				{
-					m_sImageArray[i].Offset = (i == 0) ? 22 : (m_sImageArray[i-1].Offset + m_sImageArray[i-1].Size);
+					m_sImageArray[i].hdr.s.Offset = (i == 0) ? 22 : (m_sImageArray[i-1].hdr.s.Offset + m_sImageArray[i-1].hdr.s.Size);
 					file << m_sImageArray[i];
 				}
+
 				// Write images
 				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
 				{
-					file.write(m_sImageArray->imgbytes, m_sImageArray->Size);
+					file.write(m_sImageArray->imgbytes, m_sImageArray->hdr.s.Size);
 				}
+
+				uBuffer padding[20];
+				for (int i = 0; i <20; i++)
+				{
+					padding[i].dword = 0;
+				}
+
+				file.write(&padding[0].byte[0], 80);
 			}
 
 			file.close();
@@ -231,35 +288,25 @@ int		CIMG2ICO::WriteOutputFile(char* outfile, int type)
 	return retval;
 }
 
+
 std::fstream& operator>>(std::fstream &in, sImage* image)
 {
 	uBuffer buf[8];
 
 	in.read(&buf[0].byte[2], sizeof(buf)-2);
-
-	image->Offset		= buf[2].dword;
-	image->Width		= buf[4].dword;
-	image->Height		= buf[5].dword;
-	image->BPP_Vcor		= buf[6].word[1];
-	image->Size			= buf[7].dword;
+	
+	image->hdr.s.Offset		= buf[2].dword;
+	image->hdr.s.Width		= buf[4].dword;
+	image->hdr.s.Height		= buf[5].dword;
+	image->hdr.s.BPP_Vcor	= buf[6].word[1];
+	image->hdr.s.Size		= buf[7].dword;
 	
 	return in;
 }
 
 std::fstream& operator<<(std::fstream &out, const sImage image)
 {
-	uBuffer buf[4];
-
-	buf[0].byte[0]	= image.Width;
-	buf[0].byte[1]	= image.Height;
-	buf[0].byte[2]	= image.Colors;
-	buf[0].byte[3]	= image.Reserved;
-	buf[1].word[0]	= image.Planes_Hcor;
-	buf[1].word[1]	= image.BPP_Vcor;
-	buf[2].dword	= image.Size;
-	buf[3].dword	= image.Offset;
-	
-	out.write(&buf[0].byte[0], sizeof(buf));
+	out.write(&image.hdr.bytes[0], 16 );
 
 	return out;
 }
