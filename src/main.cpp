@@ -37,6 +37,8 @@ int main(int argc, char* argv[])
 	CIMG2ICO converter("");
 
 	retval += converter.ReadInputFiles();
+
+
 	retval += converter.WriteOutputFile("Icon7.ico");
 
 	return retval;

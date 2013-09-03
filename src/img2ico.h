@@ -55,11 +55,15 @@ enum I_TYPE
 	I_SEQUENCE	= 2
 };
 
+union uBuffer
+{
+	__int8	byte[4];
+	__int16	word[2];
+	__int32	dword;
+};
+
 //ANI: Cursor name, Artist information, default frame rate, sequence info, cursor hotspot, individual frames in ico format, individual frame rates
-//CUR: cursor hotspot
-
-
-struct sFileInfo
+struct sANI_Header
 {
 	int	NumFrames;	// Also number of images for ICO / CUR
 	int	NumSteps;
@@ -68,48 +72,76 @@ struct sFileInfo
 	int	BitCount;
 	int	DisplayRate;
 	int	Flags;
+
+	sANI_Header();
 };
 
-struct sImage
+struct sANI_Chunk
 {
-	union hdr
+	__int8	tag[4];
+	uBuffer	size;
+	__int8*	data;
+};
+
+typedef union IconDirEntry
+{
+	struct s
+	{
+		__int8	Width;
+		__int8	Height;
+		__int8	ColorCount;
+		__int8	Reserved;
+		__int16	Planes_Hcor;
+		__int16	BPP_Vcor;
+		__int32	Size;
+		__int32 Offset;
+	} s;
+	char	bytes[16];
+} IconDirEntry;
+
+typedef struct IconImage
+{
+	union header
 	{
 		struct s
 		{
-			__int8	Width;
-			__int8	Height;
-			__int8	Colors;
-			__int8	Reserved;
-			__int16	Planes_Hcor;
-			__int16	BPP_Vcor;
-			__int32	Size;
-			__int32 Offset;
+			__int32	biSize;
+			__int32	biWidth;
+			__int32	biHeight;
+			__int16	biPlanes;
+			__int16	biBitCount;
+			__int32	biCompression;
+			__int32	biSizeImage;
+			__int32	biXPelsPerMeter;
+			__int32	biYPelsPerMeter;
+			__int32	biClrUsed;
+			__int32	biClrImportant;
 		} s;
-		char	bytes[16];
-	} hdr;
+		char	h_bytes[40];
+	} header;
 
-	char*	imgbytes;
+	__int8* colors;
+	__int8*	xor;
+	__int8*	and;
+} IconImage;
+
+struct sImage
+{
+	IconDirEntry	dir;
+	IconImage		img;
 
 	sImage();
 };
-
-union uBuffer
-{
-	__int8	byte[4];
-	__int16	word[2];
-	__int32	dword;
-};
-
 
 class CIMG2ICO
 {
 protected:
 	std::string		m_szPath;
-	sFileInfo		m_sFileInfo;
+	sANI_Header		m_sANI_Header;
 	int				m_iType;
+	int				m_iCount;
 	bool			m_bSequenceData;
 	bool			m_bUseRawData;
-
 	sImage*			m_sImageArray;
 
 	int	LoadImage(char* filename, struct sImage* imageout);
@@ -126,6 +158,7 @@ public:
 };
 
 std::fstream& operator>>(std::fstream &in, sImage* image);
-std::fstream& operator<<(std::fstream &out, sImage image);
+std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir);
+std::fstream& operator<<(std::fstream &out, IconImage image);
 
 #endif

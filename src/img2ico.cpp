@@ -25,13 +25,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
+sANI_Header::sANI_Header()
+{
+	NumFrames = 1;	// Also number of images for ICO / CUR
+	NumSteps = 1;
+	Width = 1;
+	Height = 1;
+	BitCount = 8;
+	DisplayRate = 30;
+	Flags = 0 | I_ICON;
+}
+
 sImage::sImage()
 {
-	imgbytes = nullptr;
+	img.and = nullptr;
+	img.xor = nullptr;
+	img.colors = nullptr;
 
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 40; i++)
 	{
-		hdr.bytes[i] = 0;
+		img.header.h_bytes[i] = 0;
+
+		if (i < 16)
+		{
+			dir.bytes[i] = 0;
+		}
 	}
 }
 
@@ -42,26 +60,20 @@ CIMG2ICO::CIMG2ICO(char* path, int type)
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
 	m_iType = type;
-	m_sFileInfo.BitCount = 0;
-	m_sFileInfo.DisplayRate = 0;
-	m_sFileInfo.Height = 0;
-	m_sFileInfo.NumFrames = 1;
-	m_sFileInfo.NumSteps = 1;
-	m_sFileInfo.Width = 0;
-	m_sFileInfo.Flags = 0 | I_ICON;
+	m_iCount = 1;
 }
 
 CIMG2ICO::~CIMG2ICO()
 {
 	// Free any allocated bitmaps
-	if (m_sImageArray != nullptr)
+	if (m_sImageArray == nullptr)
 	{
 	//	delete m_sImageArray->imagedata;
 	}
 }
 
 
-int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
+int	CIMG2ICO::LoadImage(char* filename, struct sImage* image)
 {
 	int		retval = 0;
 	uBuffer	buffer;
@@ -94,14 +106,29 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 		}
 		else if (buffer.word[0] == _BMP_HEADER_WORD)
 		{
-			imagefile >> imageout;
+			imagefile >> image;
 
-			if (imageout->hdr.s.Size == _BMP_BI_RGB)
+			if (image->img.header.s.biCompression == _BMP_BI_RGB)
 			{
-				imageout->hdr.s.Size = (imageout->hdr.s.Height * imageout->hdr.s.Width * imageout->hdr.s.BPP_Vcor / 8);
-				imagefile.seekg(imageout->hdr.s.Offset, imagefile.beg);
-				imageout->imgbytes = new char[imageout->hdr.s.Size];
-				imagefile.read(imageout->imgbytes, sizeof(imageout->imgbytes));
+				imagefile.seekg(image->dir.s.Offset, imagefile.beg);
+				image->img.colors = new __int8[image->dir.s.Size];
+				imagefile.read(image->img.colors, image->dir.s.Size);
+				image->img.and = new __int8[image->dir.s.Size / (image->img.header.s.biBitCount)];
+
+				// Build AND mask
+				for (int i = 0; i < (image->dir.s.Size / (image->img.header.s.biBitCount) ); i++)
+				{
+					image->img.and[i]  = 0x00;
+
+					image->img.and[i] |= (image->img.colors[i]       == 0) ? 0x01 : 0;
+					image->img.and[i] |= (image->img.colors[i+(1*3)] == 0) ? 0x02 : 0;
+					image->img.and[i] |= (image->img.colors[i+(2*3)] == 0) ? 0x04 : 0;
+					image->img.and[i] |= (image->img.colors[i+(3*3)] == 0) ? 0x08 : 0;
+					image->img.and[i] |= (image->img.colors[i+(4*3)] == 0) ? 0x10 : 0;
+					image->img.and[i] |= (image->img.colors[i+(5*3)] == 0) ? 0x20 : 0;
+					image->img.and[i] |= (image->img.colors[i+(6*3)] == 0) ? 0x40 : 0;
+					image->img.and[i] |= (image->img.colors[i+(7*3)] == 0) ? 0x80 : 0;
+				}
 			}
 			else
 			{
@@ -110,14 +137,14 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 		}
 		else
 		{
-			retval = 1;		// File is not BMP or PNG
+			retval = 1;		// Input File is not BMP or PNG
 		}
 
 		imagefile.close();
 	}
 	else
 	{
-		m_sFileInfo.NumFrames = 0;
+		m_sANI_Header.NumFrames = 0;
 		retval = -1;
 	}
 
@@ -127,7 +154,7 @@ int	CIMG2ICO::LoadImage(char* filename, struct sImage* imageout)
 int	CIMG2ICO::ReadConfigFile(void)
 {
 	int		retval = 0;
-	string	szConfigFilename;
+	string	szConfigFilename = "";
 	fstream	c_file;
 
 	if ((m_szPath.length()) != 0)
@@ -141,7 +168,7 @@ int	CIMG2ICO::ReadConfigFile(void)
 
 	if (c_file.is_open())
 	{
-		// Read config parameters into m_sFileInfo
+		// Read config parameters into m_sANI_Header
 
 		c_file.close();
 	}
@@ -167,6 +194,8 @@ int		CIMG2ICO::ReadInputFiles()
 
 	// Find out how many images are in the directory (PNG or BMP only)
 
+		// update m_iCount
+
 	// Allocate array for images
 
 	// Load images into sImages
@@ -178,12 +207,11 @@ int		CIMG2ICO::ReadInputFiles()
 	
 	//// Start test code
 	m_sImageArray = new sImage;
-	
+
 	retval = LoadImage("0.bmp", &m_sImageArray[0]);	// temporary code
 
 	//// End test code
-
-
+	
 	return retval;
 }
 
@@ -201,9 +229,9 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 {
 	int		retval = 0;
 	fstream	file;
-	string	szOutFilename;
+	string	szOutFilename = "";
 		
-	if (m_sFileInfo.NumFrames != 0)
+	if (m_sANI_Header.NumFrames != 0)
 	{
 		if ((m_szPath.length()) != 0)
 		{
@@ -222,8 +250,8 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 			case T_ANI:
 				uBuffer aBuf[32];
 
-				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sFileInfo.NumFrames)) << ((__int32)(m_sFileInfo.NumSteps)) << ((__int32)(m_sFileInfo.Width)) << ((__int32)(m_sFileInfo.Height));
-				file << ((__int32)(m_sFileInfo.BitCount)) << ((__int32)(1)) << ((__int32)(m_sFileInfo.DisplayRate)) << ((__int32)(m_sFileInfo.Flags)) << "fram";
+				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sANI_Header.NumFrames)) << ((__int32)(m_sANI_Header.NumSteps)) << ((__int32)(m_sANI_Header.Width)) << ((__int32)(m_sANI_Header.Height));
+				file << ((__int32)(m_sANI_Header.BitCount)) << ((__int32)(1)) << ((__int32)(m_sANI_Header.DisplayRate)) << ((__int32)(m_sANI_Header.Flags)) << "fram";
 				retval = 1;
 				file.write(&aBuf[0].byte[0], sizeof(aBuf));
 				break;
@@ -234,7 +262,7 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 
 				buf[0].word[0] = 0;
 				buf[0].word[1] = m_iType;
-				buf[1].word[0] = m_sFileInfo.NumFrames;
+				buf[1].word[0] = m_iCount;
 
 				file.write(&buf[0].byte[0], 6);
 
@@ -256,25 +284,17 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 			case T_CUR:
 			case T_ICO:
 				// Build image directory
-				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
+				for (int i = 0; i < m_iCount; i++)
 				{
-					m_sImageArray[i].hdr.s.Offset = (i == 0) ? 22 : (m_sImageArray[i-1].hdr.s.Offset + m_sImageArray[i-1].hdr.s.Size);
-					file << m_sImageArray[i];
+					m_sImageArray[i].dir.s.Offset = (i == 0) ? 22 : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
+					file << m_sImageArray[i].dir;
 				}
 
 				// Write images
-				for (int i = 0; i < m_sFileInfo.NumFrames; i++)
+				for (int i = 0; i < m_iCount; i++)
 				{
-					file.write(m_sImageArray->imgbytes, m_sImageArray->hdr.s.Size);
+					file << m_sImageArray[i].img;
 				}
-
-				uBuffer padding[20];
-				for (int i = 0; i <20; i++)
-				{
-					padding[i].dword = 0;
-				}
-
-				file.write(&padding[0].byte[0], 80);
 			}
 
 			file.close();
@@ -295,18 +315,41 @@ std::fstream& operator>>(std::fstream &in, sImage* image)
 
 	in.read(&buf[0].byte[2], sizeof(buf)-2);
 	
-	image->hdr.s.Offset		= buf[2].dword;
-	image->hdr.s.Width		= buf[4].dword;
-	image->hdr.s.Height		= buf[5].dword;
-	image->hdr.s.BPP_Vcor	= buf[6].word[1];
-	image->hdr.s.Size		= buf[7].dword;
+	image->dir.s.Offset			= buf[2].dword;
+	image->dir.s.Width			= buf[4].dword;
+	image->dir.s.Height			= buf[5].dword;
+	image->dir.s.BPP_Vcor		= buf[6].word[1];
+	image->dir.s.Size			= (buf[4].dword * buf[5].dword * buf[6].word[1] / 8);
+
+	image->img.header.s.biWidth		= (__int32)(image->dir.s.Width);
+	image->img.header.s.biHeight		= (__int32)(image->dir.s.Height);
+	image->img.header.s.biBitCount	= (__int32)(image->dir.s.BPP_Vcor);
+	image->img.header.s.biSizeImage	= (__int32)(image->dir.s.Size);
 	
 	return in;
 }
 
-std::fstream& operator<<(std::fstream &out, const sImage image)
+std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir)
 {
-	out.write(&image.hdr.bytes[0], 16 );
+	out.write(&icon_dir.bytes[0], 16 );
+
+	return out;
+}
+
+std::fstream& operator<<(std::fstream &out, IconImage image)
+{
+	out.write(&image.header.h_bytes[0], 40 );
+	out.write(&image.colors[0], image.header.s.biSizeImage );
+
+	if (image.xor != nullptr)
+	{
+		out.write(&image.xor[0], (image.header.s.biSizeImage / image.header.s.biBitCount) );
+	}
+
+	if (image.and != nullptr)
+	{
+		out.write(&image.and[0], (image.header.s.biSizeImage / image.header.s.biBitCount) );
+	}
 
 	return out;
 }
