@@ -25,21 +25,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef WIN32
 #include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
 #endif
 
-int main(int argc, char* argv[])
+using namespace std;
 
+int main(int argc, char* argv[])
 {
 	int retval = 0;
+	string	path;
+	string	out_file;
+	int		type;
 
 	// Read input parameters
-	
-	CIMG2ICO converter("");
+	path.assign("");
+	out_file.assign("Icon7.ico");
+	type = T_ICO;
 
-	retval += converter.ReadInputFiles();
-
-
-	retval += converter.WriteOutputFile("Icon7.ico");
+	// Convert data
+	CIMG2ICO converter(path.data(), out_file.data(), type);
+	retval = converter.ConvertFiles();
 
 	return retval;
 }

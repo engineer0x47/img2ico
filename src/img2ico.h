@@ -135,8 +135,9 @@ struct sImage
 
 class CIMG2ICO
 {
-protected:
+private:
 	std::string		m_szPath;
+	std::string		m_szName;
 	sANI_Header		m_sANI_Header;
 	int				m_iType;
 	int				m_iCount;
@@ -144,21 +145,19 @@ protected:
 	bool			m_bUseRawData;
 	sImage*			m_sImageArray;
 
-	int	LoadImage(char* filename, struct sImage* imageout);
-	int	ReadConfigFile(void);
+	int		LoadImage(const char* filename, struct sImage* imageout);
+	int		ReadConfigFile(void);
+	int		ReadInputFiles(void);
+	int		WriteOutputFile(void);
 
 public:
-	CIMG2ICO(char* path = "", int type = T_ICO);
+	CIMG2ICO(const char* path = "", const char* name = "icon.ico", const int type = T_ICO);
 	~CIMG2ICO();
 
-	int		ReadInputFiles();
-	void	SetDirectoryPath(char* path);
+	void	SetDirectoryPath(const char* path);
 	void	SetOutputFileType(int type);
-	int		WriteOutputFile(char* outfile = "Icon.ico");
+	void	SetOutputFileName(const char* name);
+	int		ConvertFiles(void);
 };
-
-std::fstream& operator>>(std::fstream &in, sImage* image);
-std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir);
-std::fstream& operator<<(std::fstream &out, IconImage image);
 
 #endif

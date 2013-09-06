@@ -25,6 +25,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
+std::fstream& operator>>(std::fstream &in, sImage* image);
+std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir);
+std::fstream& operator<<(std::fstream &out, IconImage image);
+
 sANI_Header::sANI_Header()
 {
 	NumFrames = 1;	// Also number of images for ICO / CUR
@@ -53,9 +57,10 @@ sImage::sImage()
 	}
 }
 
-CIMG2ICO::CIMG2ICO(char* path, int type)
+CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 {
 	m_szPath.assign(path);
+	m_szName.assign(name);
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
@@ -73,7 +78,7 @@ CIMG2ICO::~CIMG2ICO()
 }
 
 
-int	CIMG2ICO::LoadImage(char* filename, struct sImage* image)
+int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 {
 	int		retval = 0;
 	uBuffer	buffer;
@@ -183,7 +188,7 @@ int	CIMG2ICO::ReadConfigFile(void)
 	return retval;
 }
 
-int		CIMG2ICO::ReadInputFiles()
+int		CIMG2ICO::ReadInputFiles(void)
 {
 	int retval = 0;
 
@@ -215,7 +220,7 @@ int		CIMG2ICO::ReadInputFiles()
 	return retval;
 }
 
-void	CIMG2ICO::SetDirectoryPath(char* path)
+void	CIMG2ICO::SetDirectoryPath(const char* path)
 {
 	m_szPath.assign(path);
 }
@@ -225,7 +230,7 @@ void	CIMG2ICO::SetOutputFileType(int type)
 	m_iType = type;
 }
 
-int		CIMG2ICO::WriteOutputFile(char* outfile)
+int		CIMG2ICO::WriteOutputFile(void)
 {
 	int		retval = 0;
 	fstream	file;
@@ -238,7 +243,7 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 			szOutFilename.assign(m_szPath);
 			szOutFilename.append(_SZ_PATHSEPARATOR);
 		}
-		szOutFilename.append(outfile);
+		szOutFilename.append(m_szName);
 
 		file.open(szOutFilename.data(), ios::out | ios::binary);
 
@@ -308,6 +313,15 @@ int		CIMG2ICO::WriteOutputFile(char* outfile)
 	return retval;
 }
 
+int		CIMG2ICO::ConvertFiles(void)
+{
+	int retval = 0;
+
+	retval = ReadInputFiles();
+	retval += WriteOutputFile();
+
+	return retval;
+}
 
 std::fstream& operator>>(std::fstream &in, sImage* image)
 {
