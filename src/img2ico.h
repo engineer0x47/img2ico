@@ -76,6 +76,17 @@ struct sANI_Header
 	sANI_Header();
 };
 
+union sICO_Header
+{
+	struct s
+	{
+		__int16	Reserved;
+		__int16	Type;
+		__int16	Count;
+	} s;
+	char	bytes[6];
+};
+
 struct sANI_Chunk
 {
 	__int8	tag[4];
@@ -83,7 +94,7 @@ struct sANI_Chunk
 	__int8*	data;
 };
 
-typedef union IconDirEntry
+union IconDirEntry
 {
 	struct s
 	{
@@ -97,21 +108,21 @@ typedef union IconDirEntry
 		__int32 Offset;
 	} s;
 	char	bytes[16];
-} IconDirEntry;
+};
 
-typedef struct IconImage
+struct IconImage
 {
 	union header
 	{
 		struct s
 		{
-			__int32	biSize;
-			__int32	biWidth;
-			__int32	biHeight;
-			__int16	biPlanes;
-			__int16	biBitCount;
-			__int32	biCompression;
-			__int32	biSizeImage;
+			__int32	HeaderSize;
+			__int32	Width;
+			__int32	Height;
+			__int16	Planes;
+			__int16	BitsPerPixel;
+			__int32	CompressionType;
+			__int32	ImageSize;
 			__int32	biXPelsPerMeter;
 			__int32	biYPelsPerMeter;
 			__int32	biClrUsed;
@@ -123,7 +134,11 @@ typedef struct IconImage
 	__int8* colors;
 	__int8*	xor;
 	__int8*	and;
-} IconImage;
+
+	int		AndmaskSize;
+	int		XorSize;
+
+};
 
 struct sImage
 {
@@ -139,8 +154,7 @@ private:
 	std::string		m_szPath;
 	std::string		m_szName;
 	sANI_Header		m_sANI_Header;
-	int				m_iType;
-	int				m_iCount;
+	sICO_Header		m_sICO_Header;
 	bool			m_bSequenceData;
 	bool			m_bUseRawData;
 	sImage*			m_sImageArray;
@@ -155,8 +169,9 @@ public:
 	~CIMG2ICO();
 
 	void	SetDirectoryPath(const char* path);
-	void	SetOutputFileType(int type);
+	void	SetOutputFileType(const int type);
 	void	SetOutputFileName(const char* name);
+
 	int		ConvertFiles(void);
 };
 

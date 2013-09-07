@@ -32,18 +32,29 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-	int retval = 0;
-	string	path;
-	string	out_file;
-	int		type;
+	int			retval = 0;
+	string		path;
+	string		out_file;
+	int			type = T_ICO;
+	CIMG2ICO	converter;
 
 	// Read input parameters
 	path.assign("");
 	out_file.assign("Icon7.ico");
-	type = T_ICO;
 
 	// Convert data
-	CIMG2ICO converter(path.data(), out_file.data(), type);
+	if (!path.empty())
+	{
+		converter.SetDirectoryPath(path.data());
+	}
+
+	if (!out_file.empty())
+	{
+		converter.SetOutputFileName(out_file.data());
+	}
+
+	converter.SetOutputFileType(type);
+	
 	retval = converter.ConvertFiles();
 
 	return retval;

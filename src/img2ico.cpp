@@ -26,8 +26,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 std::fstream& operator>>(std::fstream &in, sImage* image);
-std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir);
-std::fstream& operator<<(std::fstream &out, IconImage image);
+
+std::fstream& operator<<(std::fstream &out, const IconDirEntry icon_dir);
+std::fstream& operator<<(std::fstream &out, const IconImage image);
+std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr);
+std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr);
+std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk);
+
 
 sANI_Header::sANI_Header()
 {
@@ -55,6 +60,9 @@ sImage::sImage()
 			dir.bytes[i] = 0;
 		}
 	}
+
+	img.header.s.HeaderSize = 40;
+	img.header.s.Planes = 1;
 }
 
 CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
@@ -64,8 +72,9 @@ CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
-	m_iType = type;
-	m_iCount = 1;
+	m_sICO_Header.s.Reserved = 0;
+	m_sICO_Header.s.Type = type;
+	m_sICO_Header.s.Count = 1;
 }
 
 CIMG2ICO::~CIMG2ICO()
@@ -113,26 +122,29 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 		{
 			imagefile >> image;
 
-			if (image->img.header.s.biCompression == _BMP_BI_RGB)
+			if (image->img.header.s.CompressionType == _BMP_BI_RGB)
 			{
 				imagefile.seekg(image->dir.s.Offset, imagefile.beg);
-				image->img.colors = new __int8[image->dir.s.Size];
-				imagefile.read(image->img.colors, image->dir.s.Size);
-				image->img.and = new __int8[image->dir.s.Size / (image->img.header.s.biBitCount)];
+				image->img.xor = new __int8[image->img.XorSize];
+				imagefile.read(image->img.xor, image->img.XorSize);
+				image->img.and = new __int8[image->img.AndmaskSize];
 
 				// Build AND mask
-				for (int i = 0; i < (image->dir.s.Size / (image->img.header.s.biBitCount) ); i++)
+				if (image->img.xor != nullptr)
 				{
-					image->img.and[i]  = 0x00;
+					for (int i = 0; i < image->img.AndmaskSize; i++)
+					{
+						image->img.and[i]  = 0x00;
 
-					image->img.and[i] |= (image->img.colors[i]       == 0) ? 0x01 : 0;
-					image->img.and[i] |= (image->img.colors[i+(1*3)] == 0) ? 0x02 : 0;
-					image->img.and[i] |= (image->img.colors[i+(2*3)] == 0) ? 0x04 : 0;
-					image->img.and[i] |= (image->img.colors[i+(3*3)] == 0) ? 0x08 : 0;
-					image->img.and[i] |= (image->img.colors[i+(4*3)] == 0) ? 0x10 : 0;
-					image->img.and[i] |= (image->img.colors[i+(5*3)] == 0) ? 0x20 : 0;
-					image->img.and[i] |= (image->img.colors[i+(6*3)] == 0) ? 0x40 : 0;
-					image->img.and[i] |= (image->img.colors[i+(7*3)] == 0) ? 0x80 : 0;
+						image->img.and[i] |= (image->img.xor[i]       == 0) ? 0x01 : 0;
+						image->img.and[i] |= (image->img.xor[i+(1*3)] == 0) ? 0x02 : 0;
+						image->img.and[i] |= (image->img.xor[i+(2*3)] == 0) ? 0x04 : 0;
+						image->img.and[i] |= (image->img.xor[i+(3*3)] == 0) ? 0x08 : 0;
+						image->img.and[i] |= (image->img.xor[i+(4*3)] == 0) ? 0x10 : 0;
+						image->img.and[i] |= (image->img.xor[i+(5*3)] == 0) ? 0x20 : 0;
+						image->img.and[i] |= (image->img.xor[i+(6*3)] == 0) ? 0x40 : 0;
+						image->img.and[i] |= (image->img.xor[i+(7*3)] == 0) ? 0x80 : 0;
+					}
 				}
 			}
 			else
@@ -179,7 +191,7 @@ int	CIMG2ICO::ReadConfigFile(void)
 	}
 	else
 	{
-		if (m_iType == T_ANI)
+		if (m_sICO_Header.s.Type == T_ANI)
 		{
 			retval = 40;
 		}
@@ -225,9 +237,21 @@ void	CIMG2ICO::SetDirectoryPath(const char* path)
 	m_szPath.assign(path);
 }
 
-void	CIMG2ICO::SetOutputFileType(int type)
+void	CIMG2ICO::SetOutputFileName(const char* filename)
 {
-	m_iType = type;
+	m_szName.assign(filename);
+}
+
+void	CIMG2ICO::SetOutputFileType(const int type)
+{
+	if ( (type > 0) & (type <= 3) )
+	{
+		m_sICO_Header.s.Type = type;
+	}
+	else
+	{
+		m_sICO_Header.s.Type = T_ICO;
+	}
 }
 
 int		CIMG2ICO::WriteOutputFile(void)
@@ -250,31 +274,20 @@ int		CIMG2ICO::WriteOutputFile(void)
 		if (file.is_open())
 		{
 			// Write file header
-			switch(m_iType)
+			switch(m_sICO_Header.s.Type)
 			{
 			case T_ANI:
-				uBuffer aBuf[32];
-
-				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sANI_Header.NumFrames)) << ((__int32)(m_sANI_Header.NumSteps)) << ((__int32)(m_sANI_Header.Width)) << ((__int32)(m_sANI_Header.Height));
-				file << ((__int32)(m_sANI_Header.BitCount)) << ((__int32)(1)) << ((__int32)(m_sANI_Header.DisplayRate)) << ((__int32)(m_sANI_Header.Flags)) << "fram";
+				file << m_sANI_Header;
 				retval = 1;
-				file.write(&aBuf[0].byte[0], sizeof(aBuf));
 				break;
 			default:
 			case T_CUR:
 			case T_ICO:
-				uBuffer buf[2];
-
-				buf[0].word[0] = 0;
-				buf[0].word[1] = m_iType;
-				buf[1].word[0] = m_iCount;
-
-				file.write(&buf[0].byte[0], 6);
-
+				file << m_sICO_Header;
 			}
 
 			// Write file body
-			switch(m_iType)
+			switch(m_sICO_Header.s.Type)
 			{
 			case T_ANI:
 				// Write frames
@@ -289,14 +302,14 @@ int		CIMG2ICO::WriteOutputFile(void)
 			case T_CUR:
 			case T_ICO:
 				// Build image directory
-				for (int i = 0; i < m_iCount; i++)
+				for (int i = 0; i < m_sICO_Header.s.Count; i++)
 				{
-					m_sImageArray[i].dir.s.Offset = (i == 0) ? 22 : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
+					m_sImageArray[i].dir.s.Offset = (i == 0) ? (6 + (16 * m_sICO_Header.s.Count) ) : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
 					file << m_sImageArray[i].dir;
 				}
 
 				// Write images
-				for (int i = 0; i < m_iCount; i++)
+				for (int i = 0; i < m_sICO_Header.s.Count; i++)
 				{
 					file << m_sImageArray[i].img;
 				}
@@ -329,41 +342,73 @@ std::fstream& operator>>(std::fstream &in, sImage* image)
 
 	in.read(&buf[0].byte[2], sizeof(buf)-2);
 	
-	image->dir.s.Offset			= buf[2].dword;
-	image->dir.s.Width			= buf[4].dword;
-	image->dir.s.Height			= buf[5].dword;
-	image->dir.s.BPP_Vcor		= buf[6].word[1];
-	image->dir.s.Size			= (buf[4].dword * buf[5].dword * buf[6].word[1] / 8);
+	image->dir.s.Offset					= buf[2].dword;
+	image->img.header.s.Width			= buf[4].dword;
+	image->img.header.s.Height			= buf[5].dword;
+	image->img.header.s.BitsPerPixel	= buf[6].word[1];
+	image->img.header.s.ImageSize		= (buf[4].dword * buf[5].dword * buf[6].word[1] / 8);
 
-	image->img.header.s.biWidth		= (__int32)(image->dir.s.Width);
-	image->img.header.s.biHeight		= (__int32)(image->dir.s.Height);
-	image->img.header.s.biBitCount	= (__int32)(image->dir.s.BPP_Vcor);
-	image->img.header.s.biSizeImage	= (__int32)(image->dir.s.Size);
+	image->dir.s.Width					= image->img.header.s.Width;
+	image->dir.s.Height					= image->img.header.s.Height;
+	image->dir.s.BPP_Vcor				= image->img.header.s.BitsPerPixel;
+
+	image->img.XorSize = image->dir.s.Width * image->dir.s.Height * image->img.header.s.BitsPerPixel / 8;
+	image->img.AndmaskSize = image->img.XorSize / image->img.header.s.BitsPerPixel;
+	image->img.header.s.Height *= 2;
+										// header size + image size + andmask size
+	image->dir.s.Size					= image->img.header.s.HeaderSize + image->img.header.s.ImageSize + image->img.AndmaskSize;
 	
 	return in;
 }
 
-std::fstream& operator<<(std::fstream &out, IconDirEntry icon_dir)
+std::fstream& operator<<(std::fstream &out, const IconDirEntry icon_dir)
 {
 	out.write(&icon_dir.bytes[0], 16 );
 
 	return out;
 }
 
-std::fstream& operator<<(std::fstream &out, IconImage image)
+std::fstream& operator<<(std::fstream &out, const IconImage image)
 {
 	out.write(&image.header.h_bytes[0], 40 );
-	out.write(&image.colors[0], image.header.s.biSizeImage );
+
+	if (image.colors != nullptr)
+	{
+		out.write(&image.colors[0], image.header.s.ImageSize );
+	}
 
 	if (image.xor != nullptr)
 	{
-		out.write(&image.xor[0], (image.header.s.biSizeImage / image.header.s.biBitCount) );
+		out.write(&image.xor[0], (image.XorSize) );
 	}
 
 	if (image.and != nullptr)
 	{
-		out.write(&image.and[0], (image.header.s.biSizeImage / image.header.s.biBitCount) );
+		out.write(&image.and[0], (image.AndmaskSize) );
 	}
+
+	return out;
+}
+
+std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr)
+{
+	out.write(&ico_hdr.bytes[0], 6 );
+
+	return out;
+}
+
+std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr)
+{
+	/*				uBuffer aBuf[32];
+
+				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sANI_Header.NumFrames)) << ((__int32)(m_sANI_Header.NumSteps)) << ((__int32)(m_sANI_Header.Width)) << ((__int32)(m_sANI_Header.Height));
+				file << ((__int32)(m_sANI_Header.BitCount)) << ((__int32)(1)) << ((__int32)(m_sANI_Header.DisplayRate)) << ((__int32)(m_sANI_Header.Flags)) << "fram";
+				file.write(&aBuf[0].byte[0], sizeof(aBuf)); */
+	return out;
+}
+
+std::fstream& operator<<(std::fstream &out, sANI_Chunk ani_chunk)
+{
 
 	return out;
 }
