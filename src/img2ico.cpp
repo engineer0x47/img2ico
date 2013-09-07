@@ -36,13 +36,26 @@ std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk);
 
 sANI_Header::sANI_Header()
 {
-	NumFrames = 1;	// Also number of images for ICO / CUR
-	NumSteps = 1;
-	Width = 1;
-	Height = 1;
-	BitCount = 8;
-	DisplayRate = 30;
-	Flags = 0 | I_ICON;
+	s.HeaderID = 'ACON';
+	s.HeaderSize = 36;
+	s.NumFrames = 1;
+	s.NumSteps = 1;
+	s.Width = 1;
+	s.Height = 1;
+	s.BitsPerPixel = 8;
+	s.NumPlanes = 1;
+	s.DisplayRate = 30;
+	s.Flags = 0 | I_ICON;
+}
+
+sANI_Chunk::sANI_Chunk()
+{
+	for (int i = 0; i < 8; i++)
+	{
+		bytes[i] = 0;
+	}
+
+	data = nullptr;	
 }
 
 sImage::sImage()
@@ -62,27 +75,46 @@ sImage::sImage()
 	}
 
 	img.header.s.HeaderSize = 40;
-	img.header.s.Planes = 1;
+	img.header.s.NumPlanes = 1;
 }
 
 CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 {
-	m_szPath.assign(path);
-	m_szName.assign(name);
+	SetDirectoryPath(path);
+	SetOutputFileName(name);
+	SetOutputFileType(type);
+
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
 	m_sICO_Header.s.Reserved = 0;
-	m_sICO_Header.s.Type = type;
 	m_sICO_Header.s.Count = 1;
 }
 
 CIMG2ICO::~CIMG2ICO()
 {
-	// Free any allocated bitmaps
-	if (m_sImageArray == nullptr)
+	// Free any allocated memory
+	if (m_sImageArray != nullptr)
 	{
-	//	delete m_sImageArray->imagedata;
+		for (int i = 0; i < m_sICO_Header.s.Count; i++)
+		{
+			if (m_sImageArray[i].img.and != nullptr)
+			{
+				delete m_sImageArray[i].img.and;
+			}
+
+			if (m_sImageArray[i].img.xor != nullptr)
+			{
+				delete m_sImageArray[i].img.xor;
+			}
+
+			if (m_sImageArray[i].img.colors != nullptr)
+			{
+				delete m_sImageArray[i].img.colors;
+			}
+		}
+
+		delete m_sImageArray;
 	}
 }
 
@@ -161,7 +193,7 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 	}
 	else
 	{
-		m_sANI_Header.NumFrames = 0;
+		m_sANI_Header.s.NumFrames = 0;
 		retval = -1;
 	}
 
@@ -174,12 +206,8 @@ int	CIMG2ICO::ReadConfigFile(void)
 	string	szConfigFilename = "";
 	fstream	c_file;
 
-	if ((m_szPath.length()) != 0)
-	{
-		szConfigFilename.assign(m_szPath);
-		szConfigFilename.append(_SZ_PATHSEPARATOR);
-	}
-	
+	szConfigFilename.assign(m_szPath);
+	szConfigFilename.append(_SZ_PATHSEPARATOR);
 	szConfigFilename.append("config");
 	c_file.open(szConfigFilename.data(), ios::in);
 
@@ -203,9 +231,7 @@ int	CIMG2ICO::ReadConfigFile(void)
 int		CIMG2ICO::ReadInputFiles(void)
 {
 	int retval = 0;
-
-	// Find out which directory we are in
-
+	
 	// Read config file if present
 	ReadConfigFile();
 
@@ -234,24 +260,31 @@ int		CIMG2ICO::ReadInputFiles(void)
 
 void	CIMG2ICO::SetDirectoryPath(const char* path)
 {
-	m_szPath.assign(path);
+	if (m_szPath.length() == 0)
+	{
+		m_szPath.assign(".");
+	}
+	else
+	{
+		m_szPath.assign(path);
+	}
 }
 
 void	CIMG2ICO::SetOutputFileName(const char* filename)
 {
-	m_szName.assign(filename);
+	if ((m_szName.length()) == 0)
+	{
+		m_szName.assign("icon.ico");
+	}
+	else
+	{
+		m_szName.assign(filename);
+	}	
 }
 
 void	CIMG2ICO::SetOutputFileType(const int type)
 {
-	if ( (type > 0) & (type <= 3) )
-	{
-		m_sICO_Header.s.Type = type;
-	}
-	else
-	{
-		m_sICO_Header.s.Type = T_ICO;
-	}
+	m_sICO_Header.s.Type = ( (type > 0) && (type <= 3) ) ? type : T_ICO;
 }
 
 int		CIMG2ICO::WriteOutputFile(void)
@@ -260,36 +293,21 @@ int		CIMG2ICO::WriteOutputFile(void)
 	fstream	file;
 	string	szOutFilename = "";
 		
-	if (m_sANI_Header.NumFrames != 0)
+	szOutFilename.assign(m_szPath);
+	szOutFilename.append(_SZ_PATHSEPARATOR);
+	szOutFilename.append(m_szName);
+
+	file.open(szOutFilename.data(), ios::out | ios::binary);
+
+	if (file.is_open())
 	{
-		if ((m_szPath.length()) != 0)
+		switch(m_sICO_Header.s.Type)
 		{
-			szOutFilename.assign(m_szPath);
-			szOutFilename.append(_SZ_PATHSEPARATOR);
-		}
-		szOutFilename.append(m_szName);
-
-		file.open(szOutFilename.data(), ios::out | ios::binary);
-
-		if (file.is_open())
-		{
-			// Write file header
-			switch(m_sICO_Header.s.Type)
+		case T_ANI:
+			if (m_sANI_Header.s.NumFrames != 0)
 			{
-			case T_ANI:
 				file << m_sANI_Header;
-				retval = 1;
-				break;
-			default:
-			case T_CUR:
-			case T_ICO:
-				file << m_sICO_Header;
-			}
 
-			// Write file body
-			switch(m_sICO_Header.s.Type)
-			{
-			case T_ANI:
 				// Write frames
 			
 				if (m_bSequenceData == true)
@@ -297,10 +315,19 @@ int		CIMG2ICO::WriteOutputFile(void)
 					// write sequence data
 				}
 				retval = 1;
-				break;
-			default:
-			case T_CUR:
-			case T_ICO:
+			}
+			else
+			{
+				retval = 1;
+			}
+			break;
+		default:
+		case T_CUR:
+		case T_ICO:
+			if (m_sICO_Header.s.Count != 0)
+			{
+				file << m_sICO_Header;
+
 				// Build image directory
 				for (int i = 0; i < m_sICO_Header.s.Count; i++)
 				{
@@ -314,13 +341,17 @@ int		CIMG2ICO::WriteOutputFile(void)
 					file << m_sImageArray[i].img;
 				}
 			}
+			else
+			{
+				retval = 1;
+			}
+		}
 
-			file.close();
-		}
-		else
-		{
-			retval = 1;
-		}
+		file.close();
+	}
+	else
+	{
+		retval = 1;
 	}
 
 	return retval;
@@ -352,10 +383,11 @@ std::fstream& operator>>(std::fstream &in, sImage* image)
 	image->dir.s.Height					= image->img.header.s.Height;
 	image->dir.s.BPP_Vcor				= image->img.header.s.BitsPerPixel;
 
-	image->img.XorSize = image->dir.s.Width * image->dir.s.Height * image->img.header.s.BitsPerPixel / 8;
-	image->img.AndmaskSize = image->img.XorSize / image->img.header.s.BitsPerPixel;
-	image->img.header.s.Height *= 2;
-										// header size + image size + andmask size
+	image->img.XorSize					= image->dir.s.Width * image->dir.s.Height * image->img.header.s.BitsPerPixel / 8;
+	image->img.AndmaskSize				= image->img.XorSize / image->img.header.s.BitsPerPixel;
+	image->img.header.s.Height		   *= 2;
+
+	// header size + image size + andmask size
 	image->dir.s.Size					= image->img.header.s.HeaderSize + image->img.header.s.ImageSize + image->img.AndmaskSize;
 	
 	return in;
@@ -399,16 +431,19 @@ std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr)
 
 std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr)
 {
-	/*				uBuffer aBuf[32];
+	out.write(&ani_hdr.bytes[0], 40);
 
-				file << "ACON" << ((__int32)(32)) << ((__int32)(m_sANI_Header.NumFrames)) << ((__int32)(m_sANI_Header.NumSteps)) << ((__int32)(m_sANI_Header.Width)) << ((__int32)(m_sANI_Header.Height));
-				file << ((__int32)(m_sANI_Header.BitCount)) << ((__int32)(1)) << ((__int32)(m_sANI_Header.DisplayRate)) << ((__int32)(m_sANI_Header.Flags)) << "fram";
-				file.write(&aBuf[0].byte[0], sizeof(aBuf)); */
 	return out;
 }
 
-std::fstream& operator<<(std::fstream &out, sANI_Chunk ani_chunk)
+std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk)
 {
+	// Ignore chunk if it has no data
+	if (ani_chunk.data != nullptr)
+	{
+		out.write(&ani_chunk.bytes[0], 8);
+		out.write(&ani_chunk.data[0], ani_chunk.s.size);
+	}
 
 	return out;
 }

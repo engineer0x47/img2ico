@@ -38,23 +38,32 @@ int main(int argc, char* argv[])
 	int			type = T_ICO;
 	CIMG2ICO	converter;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// Find out which directory we are in
+
 	// Read input parameters
 	path.assign("");
 	out_file.assign("Icon7.ico");
 
-	// Convert data
-	if (!path.empty())
-	{
-		converter.SetDirectoryPath(path.data());
-	}
-
-	if (!out_file.empty())
-	{
-		converter.SetOutputFileName(out_file.data());
-	}
-
+	converter.SetDirectoryPath(path.data());
+	converter.SetOutputFileName(out_file.data());
 	converter.SetOutputFileType(type);
-	
+
+
+	// Convert data
 	retval = converter.ConvertFiles();
 
 	return retval;

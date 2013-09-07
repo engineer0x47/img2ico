@@ -63,17 +63,38 @@ union uBuffer
 };
 
 //ANI: Cursor name, Artist information, default frame rate, sequence info, cursor hotspot, individual frames in ico format, individual frame rates
-struct sANI_Header
+union sANI_Header
 {
-	int	NumFrames;	// Also number of images for ICO / CUR
-	int	NumSteps;
-	int	Width;
-	int	Height;
-	int	BitCount;
-	int	DisplayRate;
-	int	Flags;
+	struct s
+	{
+		__int32	HeaderID;
+		__int32	HeaderSize;
+		__int32	NumFrames;	// Also number of images for ICO / CUR
+		__int32	NumSteps;
+		__int32	Width;
+		__int32	Height;
+		__int32	BitsPerPixel;
+		__int32 NumPlanes;
+		__int32	DisplayRate;
+		__int32	Flags;
+	} s;
+	char	bytes[40];
 
 	sANI_Header();
+};
+
+union sANI_Chunk
+{
+	struct s
+	{
+		__int8	tag[4];
+		__int32	size;
+	} s;
+	char	bytes[8];
+
+	__int8*	data;
+
+	sANI_Chunk();
 };
 
 union sICO_Header
@@ -87,13 +108,6 @@ union sICO_Header
 	char	bytes[6];
 };
 
-struct sANI_Chunk
-{
-	__int8	tag[4];
-	uBuffer	size;
-	__int8*	data;
-};
-
 union IconDirEntry
 {
 	struct s
@@ -102,7 +116,7 @@ union IconDirEntry
 		__int8	Height;
 		__int8	ColorCount;
 		__int8	Reserved;
-		__int16	Planes_Hcor;
+		__int16	NumPlanes_Hcor;
 		__int16	BPP_Vcor;
 		__int32	Size;
 		__int32 Offset;
@@ -119,7 +133,7 @@ struct IconImage
 			__int32	HeaderSize;
 			__int32	Width;
 			__int32	Height;
-			__int16	Planes;
+			__int16	NumPlanes;
 			__int16	BitsPerPixel;
 			__int32	CompressionType;
 			__int32	ImageSize;
@@ -137,7 +151,6 @@ struct IconImage
 
 	int		AndmaskSize;
 	int		XorSize;
-
 };
 
 struct sImage
@@ -165,7 +178,7 @@ private:
 	int		WriteOutputFile(void);
 
 public:
-	CIMG2ICO(const char* path = "", const char* name = "icon.ico", const int type = T_ICO);
+	CIMG2ICO(const char* path = ".", const char* name = "icon.ico", const int type = T_ICO);
 	~CIMG2ICO();
 
 	void	SetDirectoryPath(const char* path);
