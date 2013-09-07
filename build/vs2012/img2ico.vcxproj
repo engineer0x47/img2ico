@@ -96,11 +96,14 @@
     <ClCompile Include="..\..\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\res\resource.h" />
     <ClInclude Include="..\..\src\img2ico.h" />
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="img2ico.rc" />
+    <ResourceCompile Include="..\..\res\img2ico.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\res\icon.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

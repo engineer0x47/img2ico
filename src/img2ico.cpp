@@ -200,6 +200,90 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 	return retval;
 }
 
+int		CIMG2ICO::WriteOutputFile(void)
+{
+	int		retval = 0;
+	fstream	file;
+	string	szOutFilename = "";
+		
+//	szOutFilename.assign(m_szPath);
+//	szOutFilename.append(_SZ_PATHSEPARATOR);
+	szOutFilename.append(m_szName);
+
+	switch(m_sICO_Header.s.Type)
+	{	
+	case T_ANI:
+		szOutFilename.append(".ani");
+		break;
+	case T_CUR:
+		szOutFilename.append(".cur");
+		break;
+	case T_ICO:
+	default:
+		szOutFilename.append(".ico");
+	}
+
+	file.open(szOutFilename.data(), ios::out | ios::binary);
+
+	if (file.is_open())
+	{
+		switch(m_sICO_Header.s.Type)
+		{
+		case T_ANI:
+			if (m_sANI_Header.s.NumFrames != 0)
+			{
+				file << m_sANI_Header;
+
+				// Write frames
+			
+				if (m_bSequenceData == true)
+				{
+					// write sequence data
+				}
+				retval = 1;
+			}
+			else
+			{
+				retval = 1;
+			}
+			break;
+		default:
+		case T_CUR:
+		case T_ICO:
+			if (m_sICO_Header.s.Count != 0)
+			{
+				file << m_sICO_Header;
+
+				// Build image directory
+				for (int i = 0; i < m_sICO_Header.s.Count; i++)
+				{
+					m_sImageArray[i].dir.s.Offset = (i == 0) ? (6 + (16 * m_sICO_Header.s.Count) ) : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
+					file << m_sImageArray[i].dir;
+				}
+
+				// Write images
+				for (int i = 0; i < m_sICO_Header.s.Count; i++)
+				{
+					file << m_sImageArray[i].img;
+				}
+			}
+			else
+			{
+				retval = 1;
+			}
+		}
+
+		file.close();
+	}
+	else
+	{
+		retval = 1;
+	}
+
+	return retval;
+}
+
+
 int	CIMG2ICO::ReadConfigFile(void)
 {
 	int		retval = 0;
@@ -274,7 +358,7 @@ void	CIMG2ICO::SetOutputFileName(const char* filename)
 {
 	if ((m_szName.length()) == 0)
 	{
-		m_szName.assign("icon.ico");
+		m_szName.assign("icon");
 	}
 	else
 	{
@@ -287,74 +371,25 @@ void	CIMG2ICO::SetOutputFileType(const int type)
 	m_sICO_Header.s.Type = ( (type > 0) && (type <= 3) ) ? type : T_ICO;
 }
 
-int		CIMG2ICO::WriteOutputFile(void)
+void	CIMG2ICO::SetArtistNameANI(const char* artist)
 {
-	int		retval = 0;
-	fstream	file;
-	string	szOutFilename = "";
-		
-	szOutFilename.assign(m_szPath);
-	szOutFilename.append(_SZ_PATHSEPARATOR);
-	szOutFilename.append(m_szName);
-
-	file.open(szOutFilename.data(), ios::out | ios::binary);
-
-	if (file.is_open())
+	if (m_sICO_Header.s.Type == T_ANI)
 	{
-		switch(m_sICO_Header.s.Type)
-		{
-		case T_ANI:
-			if (m_sANI_Header.s.NumFrames != 0)
-			{
-				file << m_sANI_Header;
-
-				// Write frames
-			
-				if (m_bSequenceData == true)
-				{
-					// write sequence data
-				}
-				retval = 1;
-			}
-			else
-			{
-				retval = 1;
-			}
-			break;
-		default:
-		case T_CUR:
-		case T_ICO:
-			if (m_sICO_Header.s.Count != 0)
-			{
-				file << m_sICO_Header;
-
-				// Build image directory
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					m_sImageArray[i].dir.s.Offset = (i == 0) ? (6 + (16 * m_sICO_Header.s.Count) ) : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
-					file << m_sImageArray[i].dir;
-				}
-
-				// Write images
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					file << m_sImageArray[i].img;
-				}
-			}
-			else
-			{
-				retval = 1;
-			}
-		}
-
-		file.close();
 	}
-	else
+}
+
+void	CIMG2ICO::SetDefaultFrameRateANI(const int rate)	
+{
+	m_sANI_Header.s.DisplayRate = rate;
+}
+
+void	CIMG2ICO::SetCursorHotspot(const int h, const int v)	
+{
+	if ( (m_sICO_Header.s.Type == T_ANI) || (m_sICO_Header.s.Type == T_CUR) )
 	{
-		retval = 1;
+		m_sImageArray->dir.s.NumPlanes_Hcor = h;
+		m_sImageArray->dir.s.BPP_Vcor = v;
 	}
-
-	return retval;
 }
 
 int		CIMG2ICO::ConvertFiles(void)

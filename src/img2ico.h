@@ -26,14 +26,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #pragma once
 
+#ifndef __IMG2ICO_H__
+#define __IMG2ICO_H__
+
+#ifdef NDEBUG
+#define _IMG2ICO_ANI_UNSUPPORTED	// ANI files are not supported at this time.
+#endif
+
 #ifdef WIN32
 #define _SZ_PATHSEPARATOR "//"
 #else
 #define _SZ_PATHSEPARATOR "/\"
 #endif
 
-#ifndef __IMG2ICO_H__
-#define __IMG2ICO_H__
+#define IMG2ICO_VERSION "0.1.0.173"
 
 #define _PNG_HEADER_DWORD	0x89504E47
 #define _PNG_CHUNK_IHDR		0x49484452
@@ -178,12 +184,16 @@ private:
 	int		WriteOutputFile(void);
 
 public:
-	CIMG2ICO(const char* path = ".", const char* name = "icon.ico", const int type = T_ICO);
+	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
 	~CIMG2ICO();
 
 	void	SetDirectoryPath(const char* path);
 	void	SetOutputFileType(const int type);
 	void	SetOutputFileName(const char* name);
+
+	void	SetArtistNameANI(const char* artist);
+	void	SetDefaultFrameRateANI(const int rate);
+	void	SetCursorHotspot(const int h = 0, const int v = 0);
 
 	int		ConvertFiles(void);
 };
