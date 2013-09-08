@@ -21,8 +21,18 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <vector>
+#include <stdio.h>
 #include <iostream>
+#include <vector>
+
+#ifdef WIN32
+	#include <direct.h>
+	#define GetWorkingDir _getcwd
+#else
+	#include <unistd.h>
+	#define GetWorkingDir getcwd
+#endif
+
 #include "img2ico.h"
 #include "..\res\resource.h"
 
@@ -31,19 +41,23 @@ using namespace std;
 void	PrintHelpInformation(void);
 void	PrintVersionInformation(void);
 void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[]);
+void	SZtoLCASE(char* sz, const int size);
 
-int main(int argc, char* argv[])
+int		main(int argc, char* argv[])
 {
-	int			retval = 0;
+	bool		bPipe = false;		// Set if the user intends to disable "wait for key" message
 	CIMG2ICO	converter;
 
 	ParseCommandLineOptions(&converter, argc, argv);
-	retval = converter.ConvertFiles();
+	converter.ConvertFiles();
 	
-	cout << "Press [ENTER] to exit program...";
-	cin.get();
+	if (!bPipe)
+	{
+		cout << "Press [ENTER] to exit program...";
+		cin.get();
+	}
 
-	return retval;
+	return converter.GetErrorCodes();
 }
 
 
@@ -56,22 +70,23 @@ void	PrintHelpInformation(void)
 
 	cout << "\nUsage: img2ico [OPTIONS] -i [PATH] -o [PATH]\n"
 		 << "\nOptions:\n"
-		 << "\n    -h, -?, --help                           Help"
-		 << "\n    -v, --version                            Version information"
-		 << "\n    -t, --type TYPE                          File type"
-		 << "\n                        TYPE = 'ico'             Icon file"
-		 << "\n                        TYPE = 'cur'             Cursor file"
+		 << "\n    -h, -?, --help                       Help"
+		 << "\n    -v, --version                        Version information"
+		 << "\n    -t, --type TYPE                      File type"
+		 << "\n                        TYPE = 'ico'         Icon file"
+		 << "\n                        TYPE = 'cur'         Cursor file"
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED
-		 << "\n                        TYPE = 'ani'             Animated Cursor file"
+		 << "\n                        TYPE = 'ani'         Animated Cursor file"
 	#endif
-		 << "\n    -n, --name NAME                          Output filename"
+		 << "\n    -n, --name NAME                      Output filename"
+		 << "\n    -p, --pipe                           Disable wait on key at program end"
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED
-		 << "\n    -a, --artist A_NAME                      Artists name"
-		 << "\n    -f, --framerate RATE                     Default framerate"
+		 << "\n    -a, --artist A_NAME                  Artists name"
+		 << "\n    -f, --framerate RATE                 Default framerate"
 	#endif
-		 << "\n    -l, --hotspot HORxVERT                   Cursor hotspot"
-		 << "\n\n    -i PATH                                  Input path"
-		 << "\n    -o PATH                                  Output path\n\n"
+		 << "\n    -l, --hotspot HORxVERT               Cursor hotspot"
+		 << "\n\n    -i PATH                              Input path"
+		 << "\n    -o PATH                              Output path\n\n"
 		 << "By default this program will put all image files in the working"
 		 << "\ndirectory in ICO format in 'Icon.ico', and both the input and"
 		 << "\noutput paths are the same.  The file extension will be"
@@ -101,10 +116,11 @@ void	PrintVersionInformation(void)
 
 void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 {
-	int				type = T_ICO;
-	int				h = 0, v = 0, f = 30;
-	bool			bPrintHelp = false, bPrintVersion = false;
+	char			szWorkingDir[FILENAME_MAX];
+	bool			bPrintHelp = false;
+	bool			bPrintVersion = false;
 	vector<string>	params;
+	
 
 	for (int i=1; i<argc; i++)
 	{
@@ -112,9 +128,125 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 	}
 
 	// Find out which directory we are in
-
+	if (!GetWorkingDir(&szWorkingDir[0], FILENAME_MAX))
+	{
+		cout << "\n IMG2ICO Failed to get current working directory!\n";
+	}
 
 	// parse command line arguments
+
+	/*
+			char	cWaste;
+		char	cParam[IMG2ICO_SZ_MAXLEN];
+		char	cValue[IMG2ICO_SZ_MAXLEN];
+		bool	bFoundStart = false;
+		string	szCommands[6];
+		string	szParams[6];
+		string	szValues[6];
+
+		szCommands[0].assign("name");
+		szCommands[1].assign("artist");
+		szCommands[2].assign("defaultframerate");
+		szCommands[3].assign("sequenceinformation");
+		szCommands[4].assign("cursorhotspot_h");
+		szCommands[5].assign("cursorhotspot_v");
+
+		for (int i = 0; i < IMG2ICO_SZ_MAXLEN; i++)
+		{
+			cParam[i] = 0;
+			cValue[i] = 0;
+		}
+
+		// Read config parameters into m_sANI_Header
+		while (bFoundStart == false)
+		{
+			c_file.get(&cWaste, 1);
+			bFoundStart = (cWaste == '\n') ? true : false;
+		}
+
+		for (int i = 0; i < 5; i++)
+		{				
+			while (bFoundStart == false)
+			{
+				c_file.get(&cWaste, 1);
+				bFoundStart = (cWaste == '\n') ? true : false;
+			} 
+
+			if (i <= 4)
+			{
+				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i].assign(&cParam[i]);
+				szValues[i].assign(&cValue[i]);
+				bFoundStart = false;
+			}
+			else
+			{
+				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, ',');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i].assign(&cParam[i]);
+				szParams[i].append("_h");
+				szValues[i].assign(&cValue[i]);
+				c_file.get(&cWaste, 1);
+				if (cWaste != ',')
+				{
+					printf("FUCKUP WITH FILE PARSING!");
+				}
+				c_file.getline(&cValue[i+1], IMG2ICO_SZ_MAXLEN, '"');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i+1].assign(&cParam[i+1]);
+				szParams[i].append("_v");
+				szValues[i+1].assign(&cValue[i+1]);
+			}
+		}
+
+		// Parse Config file
+		for (int i = 0; i < 6; i++)
+		{
+			// Name
+			if ( szCommands[0].compare( szParams[i].data() ) )
+			{
+			}
+
+			// Artist
+			if ( szCommands[1].compare( szParams[i].data() ) )
+			{
+			}
+
+			// Default Framerate
+			if ( szCommands[2].compare( szParams[i].data() ) )
+			{
+				m_sANI_Header.s.DisplayRate = (__int32)(_atoi64(szValues[i].data()));
+			}
+
+			// SequenceInformation
+			if ( szCommands[3].compare( szParams[i].data() ) )
+			{
+			}
+
+			// CursorHotspot
+			if ( szCommands[4].compare( szParams[i].data() ) )
+			{
+				m_sANI_Info.s.NumPlanes_Hcor = (__int32)(_atoi64(szValues[i].data()));
+			}
+			
+			// CursorHotspot
+			if ( szCommands[5].compare( szParams[i].data() ) )
+			{
+				m_sANI_Info.s.BPP_Vcor = (__int32)(_atoi64(szValues[i].data()));
+			}
+		}
+
+
+
+
+
+
+	*/
 
 	
 /*	for (int i=1; i<argc; i++)

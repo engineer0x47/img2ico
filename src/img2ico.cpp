@@ -33,7 +33,7 @@ std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr);
 std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr);
 std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk);
 
-void	SZ_to_LCASE(char* sz, int size);
+void	SZtoLCASE(char* sz, const int size);
 
 sANI_Header::sANI_Header()
 {
@@ -81,16 +81,17 @@ sImage::sImage()
 
 CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 {
-	SetDirectoryInputPath(path);
-	SetDirectoryOutputPath(path);
-	SetOutputFileName(name);
-	SetOutputFileType(type);
-
+	m_iErrorCode = I2IE_SUCCESS;
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
 	m_sICO_Header.s.Reserved = 0;
 	m_sICO_Header.s.Count = 1;
+
+	SetDirectoryInputPath(path);
+	SetDirectoryOutputPath(path);
+	SetOutputFileName(name);
+	SetOutputFileType(type);
 }
 
 CIMG2ICO::~CIMG2ICO()
@@ -120,10 +121,8 @@ CIMG2ICO::~CIMG2ICO()
 	}
 }
 
-
-int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
+int		CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 {
-	int		retval = 0;
 	uBuffer	buffer;
 	fstream imagefile;
 
@@ -183,12 +182,12 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 			}
 			else
 			{
-				retval = 1;
+				m_iErrorCode += I2IE_FILE_COMPRESSION;
 			}
 		}
 		else
 		{
-			retval = 1;		// Input File is not BMP or PNG
+			m_iErrorCode += I2IE_FILE_UNSUPPORTED;		// Input File is not BMP or PNG
 		}
 
 		imagefile.close();
@@ -196,44 +195,44 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 	else
 	{
 		m_sANI_Header.s.NumFrames = 0;
-		retval = -1;
+		m_iErrorCode += I2IE_EMPTY_DIRECTORY;
 	}
 
-	return retval;
+	return m_iErrorCode;
 }
 
 int		CIMG2ICO::WriteOutputFile(void)
 {
-	int		retval = 0;
 	fstream	file;
 	string	szOutFilename = "";
-		
-//	szOutFilename.assign(m_szPath);
-//	szOutFilename.append(_SZ_PATHSEPARATOR);
-	szOutFilename.append(m_szName);
-
-	switch(m_sICO_Header.s.Type)
-	{	
-	case T_ANI:
-		szOutFilename.append(".ani");
-		break;
-	case T_CUR:
-		szOutFilename.append(".cur");
-		break;
-	case T_ICO:
-	default:
-		szOutFilename.append(".ico");
-	}
-
-	file.open(szOutFilename.data(), ios::out | ios::binary);
-
-	if (file.is_open())
+	
+	if ( (m_sICO_Header.s.Count != 0) && (m_sImageArray != nullptr) )
 	{
+
+		szOutFilename.assign(m_szOutPath);
+		szOutFilename.append(SZ_PATHSEPARATOR);
+		szOutFilename.append(m_szName);
+
 		switch(m_sICO_Header.s.Type)
-		{
+		{	
 		case T_ANI:
-			if (m_sANI_Header.s.NumFrames != 0)
+			szOutFilename.append(".ani");
+			break;
+		case T_CUR:
+			szOutFilename.append(".cur");
+			break;
+		case T_ICO:
+		default:
+			szOutFilename.append(".ico");
+		}
+
+		file.open(szOutFilename.data(), ios::out | ios::binary);
+
+		if (file.is_open())
+		{
+			switch(m_sICO_Header.s.Type)
 			{
+			case T_ANI:
 				file << m_sANI_Header;
 
 				// Write frames
@@ -242,18 +241,11 @@ int		CIMG2ICO::WriteOutputFile(void)
 				{
 					// write sequence data
 				}
-				retval = 1;
-			}
-			else
-			{
-				retval = 1;
-			}
+				m_iErrorCode += I2IE_FILE_UNSUPPORTED;
 			break;
-		default:
-		case T_CUR:
-		case T_ICO:
-			if (m_sICO_Header.s.Count != 0)
-			{
+			default:
+			case T_CUR:
+			case T_ICO:
 				file << m_sICO_Header;
 
 				// Build image directory
@@ -269,26 +261,25 @@ int		CIMG2ICO::WriteOutputFile(void)
 					file << m_sImageArray[i].img;
 				}
 			}
-			else
-			{
-				retval = 1;
-			}
-		}
 
-		file.close();
+			file.close();
+		}
+		else
+		{
+			m_iErrorCode += I2IE_FILE_FAILED;
+		}
 	}
 	else
 	{
-		retval = 1;
+		m_iErrorCode += I2IE_EMPTY_OUTPUT;
 	}
 
-	return retval;
+	return m_iErrorCode;
 }
 
 
-int	CIMG2ICO::ReadConfigFile(void)
+int		CIMG2ICO::ReadConfigFile(void)
 {
-	int		retval = 0;
 	string	szConfigFilename = "";
 	fstream	c_file;
 
@@ -340,7 +331,7 @@ int	CIMG2ICO::ReadConfigFile(void)
 				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
 				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
 				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
-				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				SZtoLCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
 				szParams[i].assign(&cParam[i]);
 				szValues[i].assign(&cValue[i]);
 				bFoundStart = false;
@@ -350,17 +341,17 @@ int	CIMG2ICO::ReadConfigFile(void)
 				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
 				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
 				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, ',');
-				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				SZtoLCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
 				szParams[i].assign(&cParam[i]);
 				szParams[i].append("_h");
 				szValues[i].assign(&cValue[i]);
 				c_file.get(&cWaste, 1);
 				if (cWaste != ',')
 				{
-					printf("FUCKUP WITH FILE PARSING!");
+					m_iErrorCode += I2IE_UNKNOWN;
 				}
 				c_file.getline(&cValue[i+1], IMG2ICO_SZ_MAXLEN, '"');
-				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				SZtoLCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
 				szParams[i+1].assign(&cParam[i+1]);
 				szParams[i].append("_v");
 				szValues[i+1].assign(&cValue[i+1]);
@@ -408,16 +399,16 @@ int	CIMG2ICO::ReadConfigFile(void)
 	}
 	else
 	{
-		retval = 40;
+		m_iErrorCode += I2IE_NO_CONFIGFILE;
 	}
 
-	return retval;
+	return m_iErrorCode;
 }
 
 int		CIMG2ICO::ReadInputFiles(void)
 {
-	int retval = 0;
-	
+	vector<string>	filelist;
+
 	// Read config file if present and ANI file type
 	if (m_sICO_Header.s.Type == T_ANI)
 	{
@@ -429,25 +420,36 @@ int		CIMG2ICO::ReadInputFiles(void)
 
 	// Find out how many images are in the directory (PNG or BMP only)
 
-		// update m_iCount
+	// update image counter
+	m_sANI_Header.s.NumFrames = m_sICO_Header.s.Count = 1;
 
-	// Allocate array for images
+	if (m_sICO_Header.s.Count != 0)
+	{
+		// Allocate array for images
+		m_sImageArray = new sImage[m_sICO_Header.s.Count];
 
-	// Load images into sImages
+		// Load images into sImages
+		for (int i = 0; i < m_sICO_Header.s.Count; i++)
+		{
+			LoadImage("0.bmp", &m_sImageArray[i]);
+		}
+	}
+	else
+	{
+		m_iErrorCode += I2IE_EMPTY_DIRECTORY;
+	}
 
-	// Populate all class variables
+	return m_iErrorCode;
+}
 
+int		CIMG2ICO::GetErrorCodes(void)
+{
+	return m_iErrorCode;
+}
 
-
-	
-	//// Start test code
-	m_sImageArray = new sImage;
-
-	retval = LoadImage("0.bmp", &m_sImageArray[0]);	// temporary code
-
-	//// End test code
-	
-	return retval;
+void	CIMG2ICO::ResetErrorCodes(void)
+{
+	m_iErrorCode = I2IE_SUCCESS;
 }
 
 void	CIMG2ICO::SetDirectoryInputPath(const char* in_path)
@@ -507,8 +509,8 @@ void	CIMG2ICO::SetCursorHotspot(const int h, const int v)
 {
 	if ( (m_sICO_Header.s.Type == T_ANI) || (m_sICO_Header.s.Type == T_CUR) )
 	{
-		m_sImageArray->dir.s.NumPlanes_Hcor = h;
-		m_sImageArray->dir.s.BPP_Vcor = v;
+		m_sImageArray->dir.s.NumPlanes_Hcor = (h <= IMG2ICO_MAX_DIM) ? h : 0;
+		m_sImageArray->dir.s.BPP_Vcor		= (v <= IMG2ICO_MAX_DIM) ? v : 0;
 	}
 }
 
@@ -534,6 +536,10 @@ std::fstream& operator>>(std::fstream &in, sImage* image)
 	image->img.header.s.BitsPerPixel	= buf[6].word[1];
 	image->img.header.s.ImageSize		= (buf[4].dword * buf[5].dword * buf[6].word[1] / 8);
 
+	image->img.header.s.Height			= (image->img.header.s.Height <= IMG2ICO_MAX_DIM) ? image->img.header.s.Height : IMG2ICO_MAX_DIM;
+	image->img.header.s.Width			= (image->img.header.s.Width <= IMG2ICO_MAX_DIM) ? image->img.header.s.Width : IMG2ICO_MAX_DIM;
+	image->img.header.s.BitsPerPixel	= (image->img.header.s.BitsPerPixel <= IMG2ICO_MAX_BPP) ? image->img.header.s.BitsPerPixel : IMG2ICO_MAX_BPP;
+	
 	image->dir.s.Width					= image->img.header.s.Width;
 	image->dir.s.Height					= image->img.header.s.Height;
 	image->dir.s.BPP_Vcor				= image->img.header.s.BitsPerPixel;
@@ -603,7 +609,7 @@ std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk)
 	return out;
 }
 
-void	SZ_to_LCASE(char* sz, int size)
+void	SZtoLCASE(char* sz, const int size)
 {
 	for (int j = 0; j < size; j++)
 	{

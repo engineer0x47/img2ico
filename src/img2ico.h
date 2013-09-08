@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <vector>
 
 #pragma once
 
@@ -30,7 +32,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define __IMG2ICO_H__
 
 #ifdef NDEBUG
-#define _IMG2ICO_ANI_UNSUPPORTED	// ANI files are not supported at this time.
+// ANI files are not supported at this time and won't be part of the help message
+// shown unless this is a debug build.
+#define _IMG2ICO_ANI_UNSUPPORTED
 #endif
 
 #ifdef WIN32
@@ -39,15 +43,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION "0.1.0.00193"
-#define IMG2ICO_SZ_MAXLEN 64
-#define IMG2ICO_PATH_MAXLEN 192
+#define IMG2ICO_VERSION		"0.1.0.00200"
+#define IMG2ICO_SZ_MAXLEN	64
+#define IMG2ICO_PATH_MAXLEN	192
+#define IMG2ICO_MAX_DIM		256
+#define IMG2ICO_MAX_BPP		32
 
 #define PNG_HEADER_DWORD	0x89504E47
 #define PNG_CHUNK_IHDR		0x49484452
 #define PNG_CHUNK_PLTE		0x504C5445
-#define BMP_HEADER_WORD	0x4D42
+#define BMP_HEADER_WORD		0x4D42
 #define BMP_BI_RGB			0
+
+enum IMG2ICO_ERROR
+{
+	I2IE_SUCCESS			= 0x00,
+	I2IE_FILE_FAILED		= 0x01,
+	I2IE_FILE_NOT_FOUND		= 0x02,
+	I2IE_FILE_UNSUPPORTED	= 0x04,
+	I2IE_FILE_COMPRESSION	= 0x08,
+	I2IE_EMPTY_DIRECTORY	= 0x10,
+	I2IE_EMPTY_OUTPUT		= 0x20,
+	I2IE_NO_CONFIGFILE		= 0x40,
+	I2IE_UNKNOWN			= 0x80
+};
 
 enum F_TYPE
 {
@@ -171,6 +190,7 @@ struct sImage
 class CIMG2ICO
 {
 private:
+	int				m_iErrorCode;
 	std::string		m_szInPath;
 	std::string		m_szOutPath;
 	std::string		m_szName;
@@ -191,6 +211,9 @@ private:
 public:
 	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
 	~CIMG2ICO();
+
+	int		GetErrorCodes(void);
+	void	ResetErrorCodes(void);
 
 	void	SetDirectoryInputPath(const char* in_path);
 	void	SetDirectoryOutputPath(const char* out_path);
