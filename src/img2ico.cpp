@@ -28,10 +28,10 @@ using namespace std;
 std::fstream& operator>>(std::fstream &in, sImage* image);
 
 std::fstream& operator<<(std::fstream &out, const IconDirEntry icon_dir);
-std::fstream& operator<<(std::fstream &out, const IconImage image);
+std::fstream& operator<<(std::fstream &out, const IconImage &image);
 std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr);
 std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr);
-std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk);
+std::fstream& operator<<(std::fstream &out, const sANI_Chunk &ani_chunk);
 
 void	SZtoLCASE(char* sz, const int size);
 
@@ -165,7 +165,7 @@ int		CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 
 				for (int i = 0; i < image->img.AndmaskSize; i++)
 				{
-					image->img.and = 0;
+					image->img.and[i] = 0xFF;
 				}
 
 				// Build AND mask
@@ -175,7 +175,7 @@ int		CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 					__int8	p = 0;
 					buf.dword = 0;
 					
-					for (int i = 0; i < (image->dir.s.Height * image->dir.s.Width); i++)
+					for (int i = 0; i < (image->dir.s.Height * image->dir.s.Width / 8); i++)
 					{
 						switch (image->dir.s.BPP_Vcor)
 						{
@@ -217,7 +217,7 @@ int		CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 							buf.byte[3] = image->img.xor[(i*4)+3];
 						}
 						
-						image->img.and[i] |= (buf.byte[3] == 0) ? 1 << p : 0;
+						image->img.and[i] &= (buf.byte[3] == 0) ? (0x00 ^ (1 << p)) : 0xFF;
 
 						p = (p < 7) ? p++ : 0;
 					}
@@ -640,7 +640,7 @@ std::fstream& operator<<(std::fstream &out, const IconDirEntry icon_dir)
 	return out;
 }
 
-std::fstream& operator<<(std::fstream &out, const IconImage image)
+std::fstream& operator<<(std::fstream &out, const IconImage &image)
 {
 	out.write(&image.header.h_bytes[0], 40 );
 
@@ -676,7 +676,7 @@ std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr)
 	return out;
 }
 
-std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk)
+std::fstream& operator<<(std::fstream &out, const sANI_Chunk &ani_chunk)
 {
 	// Ignore chunk if it has no data
 	if (ani_chunk.data != nullptr)
