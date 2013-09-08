@@ -26,12 +26,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img2ico.h"
 #include "..\res\resource.h"
 
-
-#ifdef WIN32
-#include <Windows.h>
-#define WIN32_LEAN_AND_MEAN
-#endif
-
 using namespace std;
 
 void	PrintHelpInformation(void);
@@ -46,9 +40,8 @@ int main(int argc, char* argv[])
 	ParseCommandLineOptions(&converter, argc, argv);
 	retval = converter.ConvertFiles();
 	
-	#ifdef WIN32
-	system("PAUSE");
-	#endif
+	cout << "Press [ENTER] to exit program...";
+	cin.get();
 
 	return retval;
 }
