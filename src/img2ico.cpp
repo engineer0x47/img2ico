@@ -82,6 +82,7 @@ sImage::sImage()
 CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 {
 	m_iErrorCode = I2IE_SUCCESS;
+	m_iTransparentColor = 0x00FE00FE;	// violet color
 	m_bSequenceData = false;
 	m_bUseRawData = false;
 	m_sImageArray = nullptr;
@@ -162,21 +163,63 @@ int		CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 				imagefile.read(image->img.xor, image->img.XorSize);
 				image->img.and = new __int8[image->img.AndmaskSize];
 
-				// Build AND mask
-				if (image->img.xor != nullptr)
+				for (int i = 0; i < image->img.AndmaskSize; i++)
 				{
-					for (int i = 0; i < image->img.AndmaskSize; i++)
-					{
-						image->img.and[i]  = 0x00;
+					image->img.and = 0;
+				}
 
-						image->img.and[i] |= (image->img.xor[i]       == 0) ? 0x01 : 0;
-						image->img.and[i] |= (image->img.xor[i+(1*3)] == 0) ? 0x02 : 0;
-						image->img.and[i] |= (image->img.xor[i+(2*3)] == 0) ? 0x04 : 0;
-						image->img.and[i] |= (image->img.xor[i+(3*3)] == 0) ? 0x08 : 0;
-						image->img.and[i] |= (image->img.xor[i+(4*3)] == 0) ? 0x10 : 0;
-						image->img.and[i] |= (image->img.xor[i+(5*3)] == 0) ? 0x20 : 0;
-						image->img.and[i] |= (image->img.xor[i+(6*3)] == 0) ? 0x40 : 0;
-						image->img.and[i] |= (image->img.xor[i+(7*3)] == 0) ? 0x80 : 0;
+				// Build AND mask
+				if ( (image->img.xor != nullptr) && (image->img.and != nullptr) )
+				{
+					uBuffer buf;
+					__int8	p = 0;
+					buf.dword = 0;
+					
+					for (int i = 0; i < (image->dir.s.Height * image->dir.s.Width); i++)
+					{
+						switch (image->dir.s.BPP_Vcor)
+						{
+						case 1:
+						case 2:
+							buf.byte[3] = 1;
+							break;
+						case 4:
+							if ( ((image->dir.s.Height * image->dir.s.Width) & 0x01) == 1)
+							{
+								buf.byte[0] = image->img.xor[i/2+1];
+							}
+							else
+							{
+								buf.byte[0] = image->img.xor[i/2];
+							}							
+							buf.byte[1] = buf.byte[2] = buf.byte[3]= 0;
+							buf.byte[3] = (buf.dword == m_iTransparentColor) ? 1 : 0;
+							break;
+						case 8:
+							buf.byte[0] = image->img.xor[i];
+							buf.byte[3] = 0;
+							buf.byte[3] = (buf.dword == m_iTransparentColor) ? 1 : 0;
+							break;
+						case 16:
+							buf.byte[0] = image->img.xor[i*2];
+							buf.byte[1] = image->img.xor[(i*2)+1];
+							buf.byte[3] = 0;
+							buf.byte[3] = (buf.dword == m_iTransparentColor) ? 1 : 0;
+							break;
+						case 24:
+							buf.byte[0] = image->img.xor[i*4];
+							buf.byte[1] = image->img.xor[(i*4)+1];
+							buf.byte[2] = image->img.xor[(i*4)+2];
+							buf.byte[3] = 0;
+							buf.byte[3] = (buf.dword == m_iTransparentColor) ? 1 : 0;
+							break;
+						case 32:
+							buf.byte[3] = image->img.xor[(i*4)+3];
+						}
+						
+						image->img.and[i] |= (buf.byte[3] == 0) ? 1 << p : 0;
+
+						p = (p < 7) ? p++ : 0;
 					}
 				}
 			}
@@ -414,11 +457,19 @@ int		CIMG2ICO::ReadInputFiles(void)
 	{
 		ReadConfigFile();
 	}
+	
+	// Find out how many images are in the directory (PNG or BMP only) and add them to the list
 
 
 
 
-	// Find out how many images are in the directory (PNG or BMP only)
+
+
+
+
+
+
+
 
 	// update image counter
 	m_sANI_Header.s.NumFrames = m_sICO_Header.s.Count = 1;
@@ -485,6 +536,34 @@ void	CIMG2ICO::SetOutputFileName(const char* filename)
 	else
 	{
 		m_szName.assign(filename);
+	}	
+}
+
+void	CIMG2ICO::SetTransparentColor(const int r, const int g, const int b)
+{
+	int rn = (r > 255) ? 255 : r;
+	int gn = (r > 255) ? 255 : r;
+	int bn = (r > 255) ? 255 : r;
+
+	if (m_sImageArray != nullptr)
+	{
+		switch (m_sImageArray[0].dir.s.BPP_Vcor)
+		{
+		case 8:
+			rn = (rn*15/255) & 0x07;
+			gn = (gn*15/255) & 0x07;
+			bn = (bn*3/255) & 0x03;
+			m_iTransparentColor = (rn << 5) | (gn << 2) | bn;
+			break;
+		case 16:
+			rn = (rn*31/255) & 0x07;
+			gn = (gn*63/255) & 0x07;
+			bn = (bn*31/255) & 0x03;
+			m_iTransparentColor = ((rn % 31) << 11) | ((gn % 63) << 5) | (bn % 31);
+			break;
+		case 24:
+			m_iTransparentColor = (rn << 16) | (gn << 8) | bn;
+		}
 	}	
 }
 

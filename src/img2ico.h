@@ -191,6 +191,7 @@ class CIMG2ICO
 {
 private:
 	int				m_iErrorCode;
+	__int32			m_iTransparentColor;
 	std::string		m_szInPath;
 	std::string		m_szOutPath;
 	std::string		m_szName;
@@ -219,6 +220,7 @@ public:
 	void	SetDirectoryOutputPath(const char* out_path);
 	void	SetOutputFileType(const int type);
 	void	SetOutputFileName(const char* name);
+	void	SetTransparentColor(const int r, const int g, const int b);
 
 	void	SetArtistNameANI(const char* artist);
 	void	SetDefaultFrameRateANI(const int rate);

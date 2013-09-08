@@ -130,10 +130,19 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 	// Find out which directory we are in
 	if (!GetWorkingDir(&szWorkingDir[0], FILENAME_MAX))
 	{
-		cout << "\n IMG2ICO Failed to get current working directory!\n";
+		cout << "\n IMG2ICO Failed to get current working directory, using '.\\' !\n";
 	}
 
 	// parse command line arguments
+
+
+
+
+
+
+
+
+
 
 	/*
 			char	cWaste;
