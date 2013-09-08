@@ -36,53 +36,23 @@ using namespace std;
 
 void	PrintHelpInformation(void);
 void	PrintVersionInformation(void);
-
+void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[]);
 
 int main(int argc, char* argv[])
 {
 	int			retval = 0;
-	string		path;
-	string		out_file;
-	int			type = T_ICO;
 	CIMG2ICO	converter;
 
-	// Parse commands
-	vector<string> parameters;
-
-	for (int i=1; i<argc; i++)
-	{
-        parameters.push_back(argv[i]);
-    }
-
-	cout << endl;
-
-	PrintHelpInformation();
-
-	cout << endl;
-	cout << endl;
-	cout << endl;
-
-	// Find out which directory we are in
-
-	// Read input parameters
-	path.assign("");
-	out_file.assign("Icon7");
-
-	converter.SetDirectoryPath(path.data());
-	converter.SetOutputFileName(out_file.data());
-	converter.SetOutputFileType(type);
-
-
-	// Convert data
+	ParseCommandLineOptions(&converter, argc, argv);
 	retval = converter.ConvertFiles();
-
-
+	
 	#ifdef WIN32
 	system("PAUSE");
 	#endif
 
 	return retval;
 }
+
 
 
 
@@ -100,32 +70,150 @@ void	PrintHelpInformation(void)
 		 << "\n                        TYPE = 'cur'             Cursor file"
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED
 		 << "\n                        TYPE = 'ani'             Animated Cursor file"
+	#endif
 		 << "\n    -n, --name NAME                          Output filename"
+	#ifndef _IMG2ICO_ANI_UNSUPPORTED
 		 << "\n    -a, --artist A_NAME                      Artists name"
 		 << "\n    -f, --framerate RATE                     Default framerate"
 	#endif
-		 << "\n    -s, --hotspot HORxVERT                   Cursor hotspot"
+		 << "\n    -l, --hotspot HORxVERT                   Cursor hotspot"
 		 << "\n\n    -i PATH                                  Input path"
 		 << "\n    -o PATH                                  Output path\n\n"
 		 << "By default this program will put all image files in the working"
-		 << "\ndirectory in ICO format in 'Icon.ico'.  The file extension"
-		 << "\nwill be automatically added to the output filename.";
-
+		 << "\ndirectory in ICO format in 'Icon.ico', and both the input and"
+		 << "\noutput paths are the same.  The file extension will be"
+		 << "\nautomatically added to the output filename.  Maximum path"
+		 << "\nlength is 192 chars, and maximum name length is 64 chars."
+		 << "\nImage dimensions cannot exceed 256x256, maximum bits per pixel"
+		 << "\nis 32 (4 bytes).\n";
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED
-	cout << "\nFor Animated cursor"
-		 << "\nfiles an optional file named 'config' may be placed in the"
-		 << "\ninput directory and formatted as below.  The default sequence"
-		 << "\nwill be used if a config file is not found.  The file"
+	cout << "\nFor Animated cursor files an optional file named 'config' may"
+		 << "\nbe placed in the input directory and formatted as below."
+		 << "\nThe default sequence will be used if a config file is not found."
+		 << "\nThe maximum string length is 64 characters."
 		 << "\n\nimg2ico Animated Icon Config"
-		 << "\nName \"icon name\""
+		 << "\nName \"cursor name\""
 		 << "\nArtist \"artist name\""
 		 << "\nDefaultFrameRate \"30\""
 		 << "\nSequenceInformation \"1,2,3,2,1\""
-		 << "\nCursorHotspot \"0,0\"\n\n";
+		 << "\nCursorHotspot \"0,0\"\n";
 	#endif
+	cout << "\n";
 }
 
 void	PrintVersionInformation(void)
 {
 	cout << "\nIMG2ICO Verison " << IMG2ICO_VERSION << endl;
+}
+
+void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
+{
+	int				type = T_ICO;
+	int				h = 0, v = 0, f = 30;
+	bool			bPrintHelp = false, bPrintVersion = false;
+	vector<string>	params;
+
+	for (int i=1; i<argc; i++)
+	{
+		params.push_back(argv[i]);
+	}
+
+	// Find out which directory we are in
+
+
+	// parse command line arguments
+
+	
+/*	for (int i=1; i<argc; i++)
+	{
+		if ((argv[i] == "-h") || (argv[i] == "--help") )
+		{
+			bPrintHelp = true;
+		}
+
+		if ((argv[i] == "-v") || (argv[i] == "--version") )
+		{
+			bPrintVersion = true;
+		}
+	}
+
+	if (bPrintHelp == false)
+	{
+		if (bPrintVersion == false)
+		{
+			for (int i=1; i<argc; i++)
+			{
+				if (argv[i+1] != NULL)
+				{
+					if ( (argv[i] == "-t") || (argv[i] == "--type") || (argv[i] == "-?") )
+					{
+						if (argv[i+1] == "ico")
+						{
+							type = T_ICO;
+							i++;
+						}
+
+						if (argv[i+1] == "cur")
+						{
+							type = T_CUR;
+							i++;
+						}
+
+						if (argv[i+1] == "ani")
+						{
+							type = T_ANI;
+							i++;
+						}
+
+						img2ico->SetOutputFileType(type);
+					}
+
+					if ( (argv[i] == "-n") || (argv[i] == "--name") )
+					{
+						img2ico->SetOutputFileName(argv[i+1]);
+						i++;
+					}
+
+					if (argv[i] == "-i")
+					{
+						img2ico->SetDirectoryInputPath(argv[i+1]);
+						i++;
+					}
+
+					if (argv[i] == "-o")
+					{
+						img2ico->SetDirectoryOutputPath(argv[i+1]);
+						i++;
+					}
+
+					if ( ( (argv[i] == "-l") || (argv[i] == "--hotspot") ) && (type != T_ICO) )
+					{
+						// Turn text into number, figure out how to turn ###x### into h and v coords
+						img2ico->SetCursorHotspot(h, v);
+					}
+
+					if ( ( (argv[i] == "-f") || (argv[i] == "--framerate") ) && (type == T_ANI) )
+					{
+						// Turn text into number
+						img2ico->SetDefaultFrameRateANI(f);
+						i++;
+					}
+
+					if ( ( (argv[i] == "-a") || (argv[i] == "--artist") ) && (type == T_ANI) )
+					{
+						img2ico->SetArtistNameANI(argv[i+1]);
+						i++;
+					}
+				}
+			}
+		}
+		else
+		{
+			PrintVersionInformation();
+		}
+	}
+	else
+	{
+		PrintHelpInformation();
+	} */
 }

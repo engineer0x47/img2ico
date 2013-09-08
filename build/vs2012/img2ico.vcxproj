@@ -103,7 +103,12 @@
     <ResourceCompile Include="..\..\res\img2ico.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\res\icon.bmp" />
     <Image Include="..\..\res\icon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE" />
+    <None Include="..\..\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

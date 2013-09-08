@@ -34,18 +34,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #ifdef WIN32
-#define _SZ_PATHSEPARATOR "//"
+#define SZ_PATHSEPARATOR "//"
 #else
-#define _SZ_PATHSEPARATOR "/\"
+#define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION "0.1.0.173"
+#define IMG2ICO_VERSION "0.1.0.00192"
+#define IMG2ICO_SZ_MAXLEN 64
+#define IMG2ICO_PATH_MAXLEN 192
 
-#define _PNG_HEADER_DWORD	0x89504E47
-#define _PNG_CHUNK_IHDR		0x49484452
-#define _PNG_CHUNK_PLTE		0x504C5445
-#define _BMP_HEADER_WORD	0x4D42
-#define _BMP_BI_RGB			0
+#define PNG_HEADER_DWORD	0x89504E47
+#define PNG_CHUNK_IHDR		0x49484452
+#define PNG_CHUNK_PLTE		0x504C5445
+#define BMP_HEADER_WORD	0x4D42
+#define BMP_BI_RGB			0
 
 enum F_TYPE
 {
@@ -68,7 +70,6 @@ union uBuffer
 	__int32	dword;
 };
 
-//ANI: Cursor name, Artist information, default frame rate, sequence info, cursor hotspot, individual frames in ico format, individual frame rates
 union sANI_Header
 {
 	struct s
@@ -170,13 +171,17 @@ struct sImage
 class CIMG2ICO
 {
 private:
-	std::string		m_szPath;
+	std::string		m_szInPath;
+	std::string		m_szOutPath;
 	std::string		m_szName;
-	sANI_Header		m_sANI_Header;
-	sICO_Header		m_sICO_Header;
 	bool			m_bSequenceData;
 	bool			m_bUseRawData;
+	sANI_Header		m_sANI_Header;
+	IconDirEntry	m_sANI_Info;
+	sANI_Chunk		m_ANI_Chunk[2];
+	sICO_Header		m_sICO_Header;
 	sImage*			m_sImageArray;
+	
 
 	int		LoadImage(const char* filename, struct sImage* imageout);
 	int		ReadConfigFile(void);
@@ -187,7 +192,8 @@ public:
 	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
 	~CIMG2ICO();
 
-	void	SetDirectoryPath(const char* path);
+	void	SetDirectoryInputPath(const char* in_path);
+	void	SetDirectoryOutputPath(const char* out_path);
 	void	SetOutputFileType(const int type);
 	void	SetOutputFileName(const char* name);
 

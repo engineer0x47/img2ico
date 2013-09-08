@@ -33,6 +33,7 @@ std::fstream& operator<<(std::fstream &out, const sICO_Header ico_hdr);
 std::fstream& operator<<(std::fstream &out, const sANI_Header ani_hdr);
 std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk);
 
+void	SZ_to_LCASE(char* sz, int size);
 
 sANI_Header::sANI_Header()
 {
@@ -80,7 +81,8 @@ sImage::sImage()
 
 CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 {
-	SetDirectoryPath(path);
+	SetDirectoryInputPath(path);
+	SetDirectoryOutputPath(path);
 	SetOutputFileName(name);
 	SetOutputFileType(type);
 
@@ -132,17 +134,17 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 	{
 		imagefile.read(&buffer.byte[0], 4);
 
-		if (buffer.dword == _PNG_HEADER_DWORD)
+		if (buffer.dword == PNG_HEADER_DWORD)
 		{
 			imagefile.read(&buffer.byte[0], 4);
 			imagefile.read(&buffer.byte[0], 4);
 			
-			if (buffer.dword == _PNG_CHUNK_IHDR)
+			if (buffer.dword == PNG_CHUNK_IHDR)
 			{
 				// Load image parameters
 			}
 
-			if (buffer.dword == _PNG_CHUNK_PLTE)
+			if (buffer.dword == PNG_CHUNK_PLTE)
 			{
 				// Load image palette
 			}
@@ -150,11 +152,11 @@ int	CIMG2ICO::LoadImage(const char* filename, struct sImage* image)
 			// Load entire PNG into sImage.imagedata
 
 		}
-		else if (buffer.word[0] == _BMP_HEADER_WORD)
+		else if (buffer.word[0] == BMP_HEADER_WORD)
 		{
 			imagefile >> image;
 
-			if (image->img.header.s.CompressionType == _BMP_BI_RGB)
+			if (image->img.header.s.CompressionType == BMP_BI_RGB)
 			{
 				imagefile.seekg(image->dir.s.Offset, imagefile.beg);
 				image->img.xor = new __int8[image->img.XorSize];
@@ -290,23 +292,123 @@ int	CIMG2ICO::ReadConfigFile(void)
 	string	szConfigFilename = "";
 	fstream	c_file;
 
-	szConfigFilename.assign(m_szPath);
-	szConfigFilename.append(_SZ_PATHSEPARATOR);
+	szConfigFilename.assign(m_szInPath);
+	szConfigFilename.append(SZ_PATHSEPARATOR);
 	szConfigFilename.append("config");
 	c_file.open(szConfigFilename.data(), ios::in);
 
 	if (c_file.is_open())
 	{
+		char	cWaste;
+		char	cParam[IMG2ICO_SZ_MAXLEN];
+		char	cValue[IMG2ICO_SZ_MAXLEN];
+		bool	bFoundStart = false;
+		string	szCommands[6];
+		string	szParams[6];
+		string	szValues[6];
+
+		szCommands[0].assign("name");
+		szCommands[1].assign("artist");
+		szCommands[2].assign("defaultframerate");
+		szCommands[3].assign("sequenceinformation");
+		szCommands[4].assign("cursorhotspot_h");
+		szCommands[5].assign("cursorhotspot_v");
+
+		for (int i = 0; i < IMG2ICO_SZ_MAXLEN; i++)
+		{
+			cParam[i] = 0;
+			cValue[i] = 0;
+		}
+
 		// Read config parameters into m_sANI_Header
+		while (bFoundStart == false)
+		{
+			c_file.get(&cWaste, 1);
+			bFoundStart = (cWaste == '\n') ? true : false;
+		}
+
+		for (int i = 0; i < 5; i++)
+		{				
+			while (bFoundStart == false)
+			{
+				c_file.get(&cWaste, 1);
+				bFoundStart = (cWaste == '\n') ? true : false;
+			} 
+
+			if (i <= 4)
+			{
+				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i].assign(&cParam[i]);
+				szValues[i].assign(&cValue[i]);
+				bFoundStart = false;
+			}
+			else
+			{
+				c_file.getline(&cParam[i], IMG2ICO_SZ_MAXLEN, ' ');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, '"');
+				c_file.getline(&cValue[i], IMG2ICO_SZ_MAXLEN, ',');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i].assign(&cParam[i]);
+				szParams[i].append("_h");
+				szValues[i].assign(&cValue[i]);
+				c_file.get(&cWaste, 1);
+				if (cWaste != ',')
+				{
+					printf("FUCKUP WITH FILE PARSING!");
+				}
+				c_file.getline(&cValue[i+1], IMG2ICO_SZ_MAXLEN, '"');
+				SZ_to_LCASE(&cParam[0], IMG2ICO_SZ_MAXLEN);
+				szParams[i+1].assign(&cParam[i+1]);
+				szParams[i].append("_v");
+				szValues[i+1].assign(&cValue[i+1]);
+			}
+		}
+
+		// Parse Config file
+		for (int i = 0; i < 6; i++)
+		{
+			// Name
+			if ( szCommands[0].compare( szParams[i].data() ) )
+			{
+			}
+
+			// Artist
+			if ( szCommands[1].compare( szParams[i].data() ) )
+			{
+			}
+
+			// Default Framerate
+			if ( szCommands[2].compare( szParams[i].data() ) )
+			{
+				m_sANI_Header.s.DisplayRate = (__int32)(_atoi64(szValues[i].data()));
+			}
+
+			// SequenceInformation
+			if ( szCommands[3].compare( szParams[i].data() ) )
+			{
+			}
+
+			// CursorHotspot
+			if ( szCommands[4].compare( szParams[i].data() ) )
+			{
+				m_sANI_Info.s.NumPlanes_Hcor = (__int32)(_atoi64(szValues[i].data()));
+			}
+			
+			// CursorHotspot
+			if ( szCommands[5].compare( szParams[i].data() ) )
+			{
+				m_sANI_Info.s.BPP_Vcor = (__int32)(_atoi64(szValues[i].data()));
+			}
+		}
 
 		c_file.close();
 	}
 	else
 	{
-		if (m_sICO_Header.s.Type == T_ANI)
-		{
-			retval = 40;
-		}
+		retval = 40;
 	}
 
 	return retval;
@@ -316,8 +418,14 @@ int		CIMG2ICO::ReadInputFiles(void)
 {
 	int retval = 0;
 	
-	// Read config file if present
-	ReadConfigFile();
+	// Read config file if present and ANI file type
+	if (m_sICO_Header.s.Type == T_ANI)
+	{
+		ReadConfigFile();
+	}
+
+
+
 
 	// Find out how many images are in the directory (PNG or BMP only)
 
@@ -342,15 +450,27 @@ int		CIMG2ICO::ReadInputFiles(void)
 	return retval;
 }
 
-void	CIMG2ICO::SetDirectoryPath(const char* path)
+void	CIMG2ICO::SetDirectoryInputPath(const char* in_path)
 {
-	if (m_szPath.length() == 0)
+	if (m_szInPath.length() == 0)
 	{
-		m_szPath.assign(".");
+		m_szInPath.assign(".");
 	}
 	else
 	{
-		m_szPath.assign(path);
+		m_szInPath.assign(in_path);
+	}
+}
+
+void	CIMG2ICO::SetDirectoryOutputPath(const char* out_path)
+{
+	if (m_szOutPath.length() == 0)
+	{
+		m_szOutPath.assign(".");
+	}
+	else
+	{
+		m_szOutPath.assign(out_path);
 	}
 }
 
@@ -422,7 +542,7 @@ std::fstream& operator>>(std::fstream &in, sImage* image)
 	image->img.AndmaskSize				= image->img.XorSize / image->img.header.s.BitsPerPixel;
 	image->img.header.s.Height		   *= 2;
 
-	// header size + image size + andmask size
+										// header size + image size + andmask size
 	image->dir.s.Size					= image->img.header.s.HeaderSize + image->img.header.s.ImageSize + image->img.AndmaskSize;
 	
 	return in;
@@ -481,4 +601,12 @@ std::fstream& operator<<(std::fstream &out, const sANI_Chunk ani_chunk)
 	}
 
 	return out;
+}
+
+void	SZ_to_LCASE(char* sz, int size)
+{
+	for (int j = 0; j < size; j++)
+	{
+		sz[j] = tolower(sz[j]);
+	}
 }
