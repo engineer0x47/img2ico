@@ -21,73 +21,124 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
+#include "img2ico_util.h"
 
 #pragma once
 
 #ifndef __IMG2ICO_H__
 #define __IMG2ICO_H__
 
-#ifdef NDEBUG
-// ANI files are not supported at this time and won't be part of the help message
-// shown unless this is a debug build.
-#define _IMG2ICO_ANI_UNSUPPORTED
+class CIMG2ICO
+{
+private:
+	int				m_iErrorCode;
+	sParameters		m_Params;
+	string			m_szInPath;
+	string			m_szOutPath;
+	string			m_szName;
+
+	vector<data_block>			m_ImageArray;
+	multimap<chunkID, chunk>	m_ChunkList;
+
+	void	ReadConfigFile(void);
+	void	ReadInputFiles(void);
+
+public:
+	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
+	~CIMG2ICO();
+		
+	void	LoadImage(const char* filename);
+	void	WriteOutputFile(void);
+	int		ConvertFiles(void);
+	int		GetErrorCodes(void);
+	void	ResetErrorCodes(void);
+
+	// Animated icons and cursors
+	void	SetCursorHotspot(const int h = 0, const int v = 0);
+
+	// Animated icons only
+	void	SetArtistNameANI(const char* artist);
+	void	SetDefaultFrameRateANI(const int rate);
+
+	// Works for all file types
+	void	SetDirectoryInputPath(const char* in_path);
+	void	SetDirectoryOutputPath(const char* out_path);
+	void	SetOutputFileType(const int type);
+	void	SetOutputFileName(const char* name);
+	void	SetTransparentColor(const int r, const int g, const int b, const int image_index);
+};
+
 #endif
 
-#ifdef WIN32
-#define SZ_PATHSEPARATOR "//"
-#else
-#define SZ_PATHSEPARATOR "/\"
-#endif
 
-#define IMG2ICO_VERSION		"0.1.0.00200"
-#define IMG2ICO_SZ_MAXLEN	64
-#define IMG2ICO_PATH_MAXLEN	192
-#define IMG2ICO_MAX_DIM		256
-#define IMG2ICO_MAX_BPP		32
-
-#define PNG_HEADER_DWORD	0x89504E47
-#define PNG_CHUNK_IHDR		0x49484452
-#define PNG_CHUNK_PLTE		0x504C5445
-#define BMP_HEADER_WORD		0x4D42
-#define BMP_BI_RGB			0
-
-enum IMG2ICO_ERROR
+/*
+union sICO_Header
 {
-	I2IE_SUCCESS			= 0x00,
-	I2IE_FILE_FAILED		= 0x01,
-	I2IE_FILE_NOT_FOUND		= 0x02,
-	I2IE_FILE_UNSUPPORTED	= 0x04,
-	I2IE_FILE_COMPRESSION	= 0x08,
-	I2IE_EMPTY_DIRECTORY	= 0x10,
-	I2IE_EMPTY_OUTPUT		= 0x20,
-	I2IE_NO_CONFIGFILE		= 0x40,
-	I2IE_UNKNOWN			= 0x80
+	struct s
+	{
+		__int16	Reserved;
+		__int16	Type;
+		__int16	Count;
+	} s;
+	char	bytes[6];
 };
 
-enum F_TYPE
+union IconDirEntry
 {
-	T_ICO = 1,
-	T_CUR = 2,
-	T_ANI = 3
+	struct s
+	{
+		__int8	Width;
+		__int8	Height;
+		__int8	ColorCount;
+		__int8	Reserved;
+		__int16	NumPlanes_Hcor;
+		__int16	BPP_Vcor;
+		__int32	Size;
+		__int32 Offset;
+	} s;
+	char	bytes[16];
 };
 
-enum I_TYPE
+
+struct IconImage
 {
-	I_ICON		= 1,
-	I_RAW		= 0,
-	I_SEQUENCE	= 2
+	union header
+	{
+		struct s
+		{
+			__int32	HeaderSize;
+			__int32	Width;
+			__int32	Height;
+			__int16	NumPlanes;
+			__int16	BitsPerPixel;
+			__int32	CompressionType;
+			__int32	ImageSize;
+			__int32	XPelsPerMeter;
+			__int32	YPelsPerMeter;
+			__int32	ClrUsed;
+			__int32	ClrImportant;
+		} s;
+		char	h_bytes[40];
+	} header;
+
+	__int8*	xor;
+	__int8*	and;
+
+	int		AndmaskSize;
+	int		XorSize;
+
+	__int32	TransparentColor;
 };
 
-union uBuffer
+struct sImage
 {
-	__int8	byte[4];
-	__int16	word[2];
-	__int32	dword;
+	IconDirEntry	dir;
+	IconImage		img;
+
+	sImage();
 };
+
+
 
 union sANI_Header
 {
@@ -122,111 +173,4 @@ union sANI_Chunk
 
 	sANI_Chunk();
 };
-
-union sICO_Header
-{
-	struct s
-	{
-		__int16	Reserved;
-		__int16	Type;
-		__int16	Count;
-	} s;
-	char	bytes[6];
-};
-
-union IconDirEntry
-{
-	struct s
-	{
-		__int8	Width;
-		__int8	Height;
-		__int8	ColorCount;
-		__int8	Reserved;
-		__int16	NumPlanes_Hcor;
-		__int16	BPP_Vcor;
-		__int32	Size;
-		__int32 Offset;
-	} s;
-	char	bytes[16];
-};
-
-struct IconImage
-{
-	union header
-	{
-		struct s
-		{
-			__int32	HeaderSize;
-			__int32	Width;
-			__int32	Height;
-			__int16	NumPlanes;
-			__int16	BitsPerPixel;
-			__int32	CompressionType;
-			__int32	ImageSize;
-			__int32	biXPelsPerMeter;
-			__int32	biYPelsPerMeter;
-			__int32	biClrUsed;
-			__int32	biClrImportant;
-		} s;
-		char	h_bytes[40];
-	} header;
-
-	__int8* colors;
-	__int8*	xor;
-	__int8*	and;
-
-	int		AndmaskSize;
-	int		XorSize;
-};
-
-struct sImage
-{
-	IconDirEntry	dir;
-	IconImage		img;
-
-	sImage();
-};
-
-class CIMG2ICO
-{
-private:
-	int				m_iErrorCode;
-	__int32			m_iTransparentColor;
-	std::string		m_szInPath;
-	std::string		m_szOutPath;
-	std::string		m_szName;
-	bool			m_bSequenceData;
-	bool			m_bUseRawData;
-	sANI_Header		m_sANI_Header;
-	IconDirEntry	m_sANI_Info;
-	sANI_Chunk		m_ANI_Chunk[2];
-	sICO_Header		m_sICO_Header;
-	sImage*			m_sImageArray;
-	
-
-	int		LoadImage(const char* filename, struct sImage* imageout);
-	int		ReadConfigFile(void);
-	int		ReadInputFiles(void);
-	int		WriteOutputFile(void);
-
-public:
-	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
-	~CIMG2ICO();
-
-	int		GetErrorCodes(void);
-	void	ResetErrorCodes(void);
-
-	void	SetDirectoryInputPath(const char* in_path);
-	void	SetDirectoryOutputPath(const char* out_path);
-	void	SetOutputFileType(const int type);
-	void	SetOutputFileName(const char* name);
-	void	SetTransparentColor(const int r, const int g, const int b);
-
-	void	SetArtistNameANI(const char* artist);
-	void	SetDefaultFrameRateANI(const int rate);
-	void	SetCursorHotspot(const int h = 0, const int v = 0);
-
-	int		ConvertFiles(void);
-};
-
-#endif
+*/

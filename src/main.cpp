@@ -21,10 +21,6 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <stdio.h>
-#include <iostream>
-#include <vector>
-
 #ifdef WIN32
 	#include <direct.h>
 	#define GetWorkingDir _getcwd
@@ -36,16 +32,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img2ico.h"
 #include "..\res\resource.h"
 
-using namespace std;
+using std::cin;
+using std::cout;
+using std::string;
+using std::vector;
 
 void	PrintHelpInformation(void);
 void	PrintVersionInformation(void);
 void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[]);
-void	SZtoLCASE(char* sz, const int size);
 
 int		main(int argc, char* argv[])
 {
-	bool		bPipe = false;		// Set if the user intends to disable "wait for key" message
+	bool		bPipe = true;		// Set false if the user intends to enable "wait for key" message
 	CIMG2ICO	converter;
 
 	ParseCommandLineOptions(&converter, argc, argv);
@@ -68,7 +66,7 @@ void	PrintHelpInformation(void)
 {
 	PrintVersionInformation();
 
-	cout << "\nUsage: img2ico [OPTIONS] -i [PATH] -o [PATH]\n"
+	cout << "\nUsage: img2ico [OPTIONS]\n"
 		 << "\nOptions:\n"
 		 << "\n    -h, -?, --help                       Help"
 		 << "\n    -v, --version                        Version information"
@@ -120,7 +118,6 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 	bool			bPrintHelp = false;
 	bool			bPrintVersion = false;
 	vector<string>	params;
-	
 
 	for (int i=1; i<argc; i++)
 	{
@@ -134,7 +131,6 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 	}
 
 	// parse command line arguments
-
 
 
 
