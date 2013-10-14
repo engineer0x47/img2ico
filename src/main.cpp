@@ -76,6 +76,7 @@ void	PrintHelpInformation(void)
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED
 		 << "\n                        TYPE = 'ani'         Animated Cursor file"
 	#endif
+		 << "\n    -m, --mipmap                         Generate full mipmaps of icon file"
 		 << "\n    -n, --name NAME                      Output filename"
 		 << "\n    -p, --pipe                           Disable wait on key at program end"
 	#ifndef _IMG2ICO_ANI_UNSUPPORTED

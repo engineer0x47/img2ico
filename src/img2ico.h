@@ -37,11 +37,12 @@ private:
 	string			m_szOutPath;
 	string			m_szName;
 
-	vector<data_block>			m_ImageArray;
+	vector<image>				m_ImageArray;
 	multimap<chunkID, chunk>	m_ChunkList;
 
 	void	ReadConfigFile(void);
 	void	ReadInputFiles(void);
+	void	ResampleImage(image* image);		// This routine is iterated through to generate mipmaps
 
 public:
 	CIMG2ICO(const char* path = ".", const char* name = "icon", const int type = T_ICO);
@@ -65,7 +66,7 @@ public:
 	void	SetDirectoryOutputPath(const char* out_path);
 	void	SetOutputFileType(const int type);
 	void	SetOutputFileName(const char* name);
-	void	SetTransparentColor(const int r, const int g, const int b, const int image_index);
+	void	SetTransparentColor(const __int8 r, const __int8 g, const __int8 b);
 };
 
 #endif

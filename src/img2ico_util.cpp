@@ -31,6 +31,14 @@ void	szToLcase(char* sz, const int size)
 	}
 }
 
+void	ZeroBuffer(uBuffer* buffer, const int numDwords)
+{
+	for (int i = 0; i < numDwords; i++)
+	{
+		buffer[i].dword = 0;
+	}
+}
+
 __int32	PackColors(const __int8 r, const __int8 g, const __int8 b, const __int8 a, const __int8 bpp)
 {
 	uBuffer packed;

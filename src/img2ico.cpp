@@ -31,6 +31,9 @@ CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 	SetDirectoryOutputPath(path);
 	SetOutputFileName(name);
 	SetOutputFileType(type);
+
+	m_Params.ImageCount = 0;
+	m_Params.ColorTransparent = PackColors(255,255,255,0,32);
 }
 
 CIMG2ICO::~CIMG2ICO()
@@ -47,132 +50,105 @@ int		CIMG2ICO::ConvertFiles(void)
 
 void	CIMG2ICO::LoadImage(const char* filename)
 {
-	uBuffer	buffer;
+	uBuffer	buffer[14];
 	fstream imagefile;
 
-	buffer.dword = 0;
+	ZeroBuffer(&buffer[0], 14);
 	imagefile.open(filename, ios::in | ios::binary);
 
 	if (imagefile.is_open() == true)
 	{
-		imagefile.read(&buffer.byte[0], 4);
+		image img;
+		img.pData.clear();
 
-		if (buffer.dword == PNG_HEADER_DWORD)
+		imagefile.read(&buffer[0].byte[0], 10);
+		imagefile.read(&buffer[3].byte[0], 44);
+
+		if (buffer[0].dword == PNG_HEADER_DWORD)
 		{
-			imagefile.read(&buffer.byte[0], 4);
-			imagefile.read(&buffer.byte[0], 4);
-			
-			if (buffer.dword == PNG_CHUNK_IHDR)
+			if (buffer[2].dword == PNG_CHUNK_IHDR)
 			{
 				// Load image parameters
 			}
 
-			if (buffer.dword == PNG_CHUNK_PLTE)
+			if (buffer[2].dword == PNG_CHUNK_PLTE)
 			{
 				// Load image palette
 			}
 
-			// Load entire PNG into sImage.imagedata
+			// Load entire PNG into m_ImageArray<>->pData
 
 		}
-		else if (buffer.word[0] == BMP_HEADER_WORD)
+		else if (buffer[0].word[0] == BMP_HEADER_WORD)
 		{
-			/*	uBuffer buf[8];
+			__int32 offset				= buffer[3].dword;
+			img.Width					= (buffer[5].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[5].dword;
+			img.Height					= (buffer[6].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[6].dword;
+			img.NumPlanes				= 1;
+			img.BitsPerPixel			= (buffer[7].word[1] > IMG2ICO_MAX_BPP) ? IMG2ICO_MAX_BPP : buffer[7].word[1];
+			img.ImgSize					= img.Width * img.Height * (img.BitsPerPixel / 8);
+			img.MaskSize				= img.Width * img.Height / 8;
+			img.FileSize				= BMP_HEADER_SIZE + img.ImgSize + img.MaskSize;		// header size + image size + andmask size
 
-				in.read(&buf[0].byte[2], sizeof(buf)-2);
-	
-				image->dir.s.Offset					= buf[2].dword;
-				image->img.header.s.Width			= buf[4].dword;
-				image->img.header.s.Height			= buf[5].dword;
-				image->img.header.s.BitsPerPixel	= buf[6].word[1];
-				image->img.header.s.ImageSize		= (buf[4].dword * buf[5].dword * buf[6].word[1] / 8);
-
-				image->img.header.s.Height			= (image->img.header.s.Height <= IMG2ICO_MAX_DIM) ? image->img.header.s.Height : IMG2ICO_MAX_DIM;
-				image->img.header.s.Width			= (image->img.header.s.Width <= IMG2ICO_MAX_DIM) ? image->img.header.s.Width : IMG2ICO_MAX_DIM;
-				image->img.header.s.BitsPerPixel	= (image->img.header.s.BitsPerPixel <= IMG2ICO_MAX_BPP) ? image->img.header.s.BitsPerPixel : IMG2ICO_MAX_BPP;
-	
-				image->dir.s.Width					= image->img.header.s.Width;
-				image->dir.s.Height					= image->img.header.s.Height;
-				image->dir.s.BPP_Vcor				= image->img.header.s.BitsPerPixel;
-
-				image->img.XorSize					= image->dir.s.Width * image->dir.s.Height * image->img.header.s.BitsPerPixel / 8;
-				image->img.AndmaskSize				= image->img.XorSize / image->img.header.s.BitsPerPixel;
-				image->img.header.s.Height		   *= 2;
-
-													// header size + image size + andmask size
-				image->dir.s.Size					= image->img.header.s.HeaderSize + image->img.header.s.ImageSize + image->img.AndmaskSize;
-	
-				*/
-
-		/*	if (image->img.header.s.CompressionType == BMP_BI_RGB)
+			if (buffer[8].dword == BMP_BI_RGB)
 			{
-				imagefile.seekg(image->dir.s.Offset, imagefile.beg);
-				image->img.xor = new __int8[image->img.XorSize];
-				imagefile.read(image->img.xor, image->img.XorSize);
-				image->img.and = new __int8[image->img.AndmaskSize];
+				imagefile.seekg(offset, imagefile.beg);
+				img.pData.reserve(img.ImgSize + img.MaskSize);
 
-				for (int i = 0; i < image->img.AndmaskSize; i++)
+				//	Read each byte one at a time
+				for (int i = 0; i < img.ImgSize; i++)
 				{
-					image->img.and[i] = (__int8)(0xFF);
+					img.pData.push_back(imagefile.get());
 				}
 
 				// Build AND mask
-				if ( (image->img.xor != nullptr) && (image->img.and != nullptr) )
-				{
-					uBuffer buf;
-					__int8	p = 0;
-					buf.dword = 0;
+				uBuffer pix = {0};
+				unsigned __int8	p = 255;
+				int j = 0;
 					
-					for (int i = 0; i < (image->img.AndmaskSize); i++)
+				for (int i = (img.Width * img.Height); i > 0; i--)
+				{
+					switch (img.BitsPerPixel)
 					{
-						switch (image->dir.s.BPP_Vcor)
-						{
-						case 1:
-							image->img.and[i] = 0x00;	// Needs correct implementation
-							break;
-						case 2:
-							image->img.and[i] = 0x00;	// Needs correct implementation
-							break;
-						case 4:
-							image->img.and[i] = 0x00;	// Needs correct implementation
-							break;
-						case 8:
-							image->img.and[i] = 0x00;	// Needs correct implementation
-							break;
-						case 16:
-							image->img.and[i] = 0x00;	// Needs correct implementation
-							break;
-						case 24:
-							for (int j =0; j < 8; j++)
-							{
-								buf.byte[0] = image->img.xor[(i*j)];
-								buf.byte[1] = image->img.xor[(i*j)+1];
-								buf.byte[2] = image->img.xor[(i*j)+2];
-								buf.byte[3] = image->img.xor[(i*j)+3];
-								if (buf.byte[3] != 0)
-								{
-									image->img.and[i] &= (buf.byte[3] == 0) ? (0xFF - (1 < j)) : 0xFF;
-								}
-								else
-								{
-									image->img.and[i] &= (buf.dword == m_Params.ColorTransparent) ? (0xFF - (1 < j)) : 0xFF;
-								}
-							}
-							break;
-						case 32:
-							for (int j =0; j < 8; j++)
-							{
-								buf.byte[3] = image->img.xor[(i*j)+3];
-								image->img.and[i] &= (buf.byte[3] == 0) ? (0xFF - (1 < j)) : 0xFF; 
-							}
-						}
+					case 1:
+						p = 0;	// Needs correct implementation
+						break;
+					case 2:
+						p = 0;	// Needs correct implementation
+						break;
+					case 4:
+						p = 0;	// Needs correct implementation
+						break;
+					case 8:
+						p = 0;	// Needs correct implementation
+						break;
+					case 16:
+						p = 0;	// Needs correct implementation
+						break;
+					case 24:
+							pix.byte[1] = img.pData[i];
+							pix.byte[2] = img.pData[i+1];
+							pix.byte[3] = img.pData[i+2];
+							p |= (pix.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
+						break;
+					case 32:
+						// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
+							p |= (img.pData[i+3] == 0) ? (1 << j) : 0;
 					}
+
+					img.pData.push_back(p);
+					p = 0;
+					j = ( j >= 8) ? 0 : (j + 1);
 				}
+
+				img.pData.shrink_to_fit();
+				m_ImageArray.push_back(img);
+				m_Params.ImageCount++;
 			}
 			else
 			{
 				m_iErrorCode |= I2IE_FILE_COMPRESSION;
-			}*/
+			}
 		}
 		else
 		{
@@ -189,16 +165,121 @@ void	CIMG2ICO::LoadImage(const char* filename)
 
 void	CIMG2ICO::WriteOutputFile(void)
 {
-	if (m_Params.Type == T_ANI)
+	fstream	file;
+	string	szOutFilename = "";
+	
+	if (m_Params.ImageCount > 0)
 	{
-		//m_iErrorCode |= m_ANI_File.WriteOutputFileANI(m_szOutPath.data(), m_szName.data());
+
+		szOutFilename.assign(m_szOutPath);
+		szOutFilename.append(SZ_PATHSEPARATOR);
+		szOutFilename.append(m_szName);
+
+		switch(m_Params.FileType)
+		{	
+		case T_ANI:
+			szOutFilename.append(".ani");
+			break;
+		case T_CUR:
+			szOutFilename.append(".cur");
+			break;
+		case T_ICO:
+		default:
+			szOutFilename.append(".ico");
+		}
+
+		file.open(szOutFilename.data(), ios::out | ios::binary);
+
+		if (file.is_open())
+		{
+			uBuffer buffer[10];
+
+			ZeroBuffer(&buffer[0], 10);
+
+			switch (m_Params.FileType)
+			{
+			case T_ANI:
+				//file << m_sANI_Header;
+					// Write frames
+				//m_iErrorCode |= m_ANI_File.WriteOutputFileANI(m_szOutPath.data(), m_szName.data());
+				//if (m_bSequenceData == true)
+				//{
+					// write sequence data
+				//}
+				m_iErrorCode += I2IE_FILE_UNSUPPORTED;
+			break;
+			default:
+			case T_CUR:
+			case T_ICO:
+				buffer[0].word[1] = m_Params.FileType;
+				buffer[1].word[0] = m_Params.ImageCount;
+				file.write(&buffer[0].byte[0], 6);
+
+				__int32 offset = 6 + (16 * m_Params.ImageCount);
+
+				// Some documentation (daubnet.com) specifies CUR files with a different dirEntry size than ICO
+
+				// Write Directory Entries
+				for (int i = 0; i < m_Params.ImageCount; i++)
+				{
+					buffer[0].byte[0]	= m_ImageArray[i].Width;
+					buffer[0].byte[1]	= m_ImageArray[i].Height;
+					buffer[0].byte[2]	= ( (m_ImageArray[i].BitsPerPixel == 1) || (m_ImageArray[i].BitsPerPixel == 4) ) ? (1 << m_ImageArray[i].BitsPerPixel) : 0;
+					buffer[0].byte[3]	= 0;
+					buffer[1].word[0]	= 0;	// For some reason this instance of "ColorPlanes" is zero in MS-generated files?!?
+					buffer[1].word[1]	= m_ImageArray[i].BitsPerPixel;
+					buffer[2].dword		= m_ImageArray[i].FileSize;
+					buffer[3].dword		= offset;
+
+					file.write(&buffer[0].byte[0], 16 );
+
+					if (i > 0)
+					{
+						offset += m_ImageArray[i-1].FileSize;
+					}
+				}
+
+				// Write images
+				for (int i = 0; i < m_Params.ImageCount; i++)
+				{
+					buffer[0].dword		= BMP_HEADER_SIZE;
+					buffer[1].dword		= m_ImageArray[i].Width;
+					buffer[2].dword		= m_ImageArray[i].Height * 2;
+					buffer[3].word[0]	= m_ImageArray[i].NumPlanes;
+					buffer[3].word[1]	= m_ImageArray[i].BitsPerPixel;
+					buffer[4].dword		= BMP_BI_RGB;
+					buffer[5].dword		= m_ImageArray[i].ImgSize;
+					buffer[6].dword		= 0;
+					buffer[7].dword		= 0;
+					buffer[8].dword		= 0;
+					buffer[9].dword		= 0;
+
+					file.write(&buffer[0].byte[0], 40);									// Write Header
+					file.write(&m_ImageArray[i].pData[0], m_ImageArray[i].ImgSize);		// Write Image
+
+					// Write Mask with 4-byte padding (need to implement the padding part)
+					
+					file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize], m_ImageArray[i].MaskSize);
+
+				/*	for (int j = 0; j < m_ImageArray[i].MaskSize; j++)
+					{
+						file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize + j], 1);
+					}	*/
+				}
+			}
+
+			file.close();
+		}
+		else
+		{
+			m_iErrorCode += I2IE_FILE_FAILED;
+		}
 	}
 	else
 	{
-		//m_iErrorCode |= m_ICO_File.WriteOutputFileICO(m_szOutPath.data(), m_szName.data());
+		m_iErrorCode += I2IE_EMPTY_OUTPUT;
 	}
 }
-
 
 void	CIMG2ICO::ReadConfigFile(void)
 {
@@ -286,20 +367,29 @@ void	CIMG2ICO::ReadConfigFile(void)
 			// Name
 			if ( szCommands[0].compare( szParams[i].data() ) )
 			{
+				szValues[i].shrink_to_fit();
+
+				if (szValues[i].length() > IMG2ICO_SZ_MAXLEN)
+				{
+					szValues[i].resize(IMG2ICO_SZ_MAXLEN);
+				}
+
+				m_szName.assign(szValues[i].data());
 			}
 
-			// Artist
+			// Artist, update Chunk
 			if ( szCommands[1].compare( szParams[i].data() ) )
 			{
+				SetArtistNameANI(szValues[i].data());
 			}
 
 			// Default Framerate
 			if ( szCommands[2].compare( szParams[i].data() ) )
 			{
-				//t_AniHeader.s.DisplayRate = (__int32)(_atoi64(szValues[i].data()));
+				SetDefaultFrameRateANI( (__int32)(_atoi64(szValues[i].data())) );
 			}
 
-			// SequenceInformation
+			// SequenceInformation, update Chunk
 			if ( szCommands[3].compare( szParams[i].data() ) )
 			{
 			}
@@ -307,13 +397,13 @@ void	CIMG2ICO::ReadConfigFile(void)
 			// CursorHotspot
 			if ( szCommands[4].compare( szParams[i].data() ) )
 			{
-				//t_IcoHeader.s.NumPlanes_Hcor = (__int32)(_atoi64(szValues[i].data()));
+				SetCursorHotspot( (__int32)(_atoi64(szValues[i].data())), m_Params.Vcoord);
 			}
 			
 			// CursorHotspot
 			if ( szCommands[5].compare( szParams[i].data() ) )
 			{
-				//t_IcoHeader.s.BPP_Vcor = (__int32)(_atoi64(szValues[i].data()));
+				SetCursorHotspot( m_Params.Hcoord, (__int32)(_atoi64(szValues[i].data())) );
 			}
 		}
 
@@ -330,7 +420,7 @@ void	CIMG2ICO::ReadInputFiles(void)
 	vector<string>	filelist;
 
 	// Read config file if present and ANI file type
-	if (m_Params.Type == T_ANI)
+	if (m_Params.FileType == T_ANI)
 	{
 		ReadConfigFile();
 	}
@@ -339,33 +429,7 @@ void	CIMG2ICO::ReadInputFiles(void)
 
 
 
-
-
-
-
-
-
-
-
-
-	// update image counter
-
-/*	if (m_ImageCount != 0)
-	{
-		// Allocate array for images
-		m_sImageArray = new sImage[m_ImageCount];
-
-		// Load images into sImages
-		for (int i = 0; i < m_ImageCount; i++)
-		{
-			LoadImage("0.bmp", &m_sImageArray[i]);
-		}
-	}
-	else
-	{
-		m_iErrorCode |= I2IE_EMPTY_DIRECTORY;
-	}*/
-
+	LoadImage("0.bmp");
 
 }
 
@@ -407,7 +471,7 @@ void	CIMG2ICO::SetOutputFileName(const char* filename)
 {
 	if ((m_szName.length()) == 0)
 	{
-		switch (m_Params.Type)
+		switch (m_Params.FileType)
 		{
 		case T_ANI:
 			m_szName.assign("ani_cursor");
@@ -426,17 +490,14 @@ void	CIMG2ICO::SetOutputFileName(const char* filename)
 	}	
 }
 
-void	CIMG2ICO::SetTransparentColor(const int r, const int g, const int b, const int image_index)
+void	CIMG2ICO::SetTransparentColor(const __int8 r, const __int8 g, const __int8 b)
 {
-	/*if (m_sImageArray != nullptr)
-	{
-		m_iTransparentColor = PackColors8(r, g, b, 0, m_bpp);
-	}*/	
+	m_Params.ColorTransparent = PackColors8(r, g, b, 0, m_Params.BitsPerPixel);
 }
 
 void	CIMG2ICO::SetOutputFileType(const int type)
 {
-	//m_iType = ( (type > 0) && (type <= 3) ) ? type : T_ICO;
+	m_Params.FileType = ( (type > 0) && (type <= 3) ) ? type : T_ICO;
 }
 
 void	CIMG2ICO::SetArtistNameANI(const char* artist)
@@ -445,259 +506,11 @@ void	CIMG2ICO::SetArtistNameANI(const char* artist)
 
 void	CIMG2ICO::SetDefaultFrameRateANI(const int rate)	
 {
+	m_Params.DisplayRate = (rate < 120) ? rate : 120;
 }
 
 void	CIMG2ICO::SetCursorHotspot(const int h, const int v)	
 {
-/*	if ( (m_sICO_Header.s.Type == T_ANI) || (m_sICO_Header.s.Type == T_CUR) )
-	{
-		m_sImageArray->dir.s.NumPlanes_Hcor = (h <= IMG2ICO_MAX_DIM) ? h : 0;
-		m_sImageArray->dir.s.BPP_Vcor		= (v <= IMG2ICO_MAX_DIM) ? v : 0;
-	}*/
-
-
+	m_Params.Hcoord = ( (h <= (IMG2ICO_MAX_DIM - 1)) && (h <= (m_Params.Height - 1)) ) ? h : 0;
+	m_Params.Vcoord = ( (v <= (IMG2ICO_MAX_DIM - 1)) && (h <= (m_Params.Width - 1)) )? h : 0;
 }
-
-
-//img.header.s.HeaderSize = 40;
-//img.header.s.NumPlanes = 1;
-
-/*
-
-
-int		CICO_File::WriteOutputFile(const char* path, const char* name)
-{
-	fstream	file;
-	string	szOutFilename = "";
-	
-	if ( (m_sICO_Header.s.Count != 0) && (m_sImageArray != nullptr) )
-	{
-
-		szOutFilename.assign(m_szOutPath);
-		szOutFilename.append(SZ_PATHSEPARATOR);
-		szOutFilename.append(m_szName);
-
-		switch(m_sICO_Header.s.Type)
-		{	
-		case T_ANI:
-			szOutFilename.append(".ani");
-			break;
-		case T_CUR:
-			szOutFilename.append(".cur");
-			break;
-		case T_ICO:
-		default:
-			szOutFilename.append(".ico");
-		}
-
-		file.open(szOutFilename.data(), ios::out | ios::binary);
-
-		if (file.is_open())
-		{
-			switch(m_sICO_Header.s.Type)
-			{
-			case T_ANI:
-				file << m_sANI_Header;
-
-				// Write frames
-			
-				if (m_bSequenceData == true)
-				{
-					// write sequence data
-				}
-				m_iErrorCode += I2IE_FILE_UNSUPPORTED;
-			break;
-			default:
-			case T_CUR:
-			case T_ICO:
-				file << m_sICO_Header;
-
-				// Build image directory
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					m_sImageArray[i].dir.s.Offset = (i == 0) ? (6 + (16 * m_sICO_Header.s.Count) ) : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
-					file << m_sImageArray[i].dir;
-				}
-
-				// Write images
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					file << m_sImageArray[i].img;
-				}
-			}
-
-			file.close();
-		}
-		else
-		{
-			m_iErrorCode += I2IE_FILE_FAILED;
-		}
-	}
-	else
-	{
-		m_iErrorCode += I2IE_EMPTY_OUTPUT;
-	}
-
-	return m_iErrorCode;
-}
-
-fstream& operator<<(fstream &out, const IconDirEntry icon_dir)
-{
-	out.write(&icon_dir.bytes[0], 16 );
-
-	return out;
-}
-
-fstream& operator<<(fstream &out, const IconImage &image)
-{
-	out.write(&image.header.h_bytes[0], 40 );
-
-	if (image.xor != nullptr)
-	{
-		out.write(&image.xor[0], (image.XorSize) );
-	}
-
-	if (image.and != nullptr)
-	{
-		out.write(&image.and[0], (image.AndmaskSize) );
-	}
-
-	return out;
-}
-
-fstream& operator<<(fstream &out, const sICO_Header ico_hdr)
-{
-	out.write(&ico_hdr.bytes[0], 6 );
-
-	return out;
-}
-
-
-sANI_Header::sANI_Header()
-{
-	s.HeaderID = 'ACON';
-	s.HeaderSize = 36;
-	s.NumFrames = 1;
-	s.NumSteps = 1;
-	s.Width = 1;
-	s.Height = 1;
-	s.BitsPerPixel = 8;
-	s.NumPlanes = 1;
-	s.DisplayRate = 30;
-	s.Flags = 0 | I_ICON;
-}
-
-sANI_Chunk::sANI_Chunk()
-{
-	for (int i = 0; i < 8; i++)
-	{
-		bytes[i] = 0;
-	}
-
-	data = nullptr;	
-}
-
-CANI_File::CANI_File()
-{
-}
-
-CANI_File::~CANI_File()
-{
-}
-
-int		CANI_File::WriteOutputFile(const char* path, const char* name)
-{
-	fstream	file;
-	string	szOutFilename = "";
-	
-	if ( (m_sICO_Header.s.Count != 0) && (m_sImageArray != nullptr) )
-	{
-
-		szOutFilename.assign(m_szOutPath);
-		szOutFilename.append(SZ_PATHSEPARATOR);
-		szOutFilename.append(m_szName);
-
-		switch(m_sICO_Header.s.Type)
-		{	
-		case T_ANI:
-			szOutFilename.append(".ani");
-			break;
-		case T_CUR:
-			szOutFilename.append(".cur");
-			break;
-		case T_ICO:
-		default:
-			szOutFilename.append(".ico");
-		}
-
-		file.open(szOutFilename.data(), ios::out | ios::binary);
-
-		if (file.is_open())
-		{
-			switch(m_sICO_Header.s.Type)
-			{
-			case T_ANI:
-				file << m_sANI_Header;
-
-				// Write frames
-			
-				if (m_bSequenceData == true)
-				{
-					// write sequence data
-				}
-				m_iErrorCode += I2IE_FILE_UNSUPPORTED;
-			break;
-			default:
-			case T_CUR:
-			case T_ICO:
-				file << m_sICO_Header;
-
-				// Build image directory
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					m_sImageArray[i].dir.s.Offset = (i == 0) ? (6 + (16 * m_sICO_Header.s.Count) ) : (m_sImageArray[i-1].dir.s.Offset + m_sImageArray[i-1].dir.s.Size);
-					file << m_sImageArray[i].dir;
-				}
-
-				// Write images
-				for (int i = 0; i < m_sICO_Header.s.Count; i++)
-				{
-					file << m_sImageArray[i].img;
-				}
-			}
-
-			file.close();
-		}
-		else
-		{
-			m_iErrorCode += I2IE_FILE_FAILED;
-		}
-	}
-	else
-	{
-		m_iErrorCode += I2IE_EMPTY_OUTPUT;
-	}
-
-	return m_iErrorCode;
-}
-
-fstream& operator<<(fstream &out, const sANI_Header ani_hdr)
-{
-	out.write(&ani_hdr.bytes[0], 40);
-
-	return out;
-}
-
-fstream& operator<<(fstream &out, const sANI_Chunk &ani_chunk)
-{
-	// Ignore chunk if it has no data
-	if (ani_chunk.data != nullptr)
-	{
-		out.write(&ani_chunk.bytes[0], 8);
-		out.write(&ani_chunk.data[0], ani_chunk.s.size);
-	}
-
-	return out;
-}
-
-*/
