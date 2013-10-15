@@ -1,6 +1,6 @@
                                img2ico
 ___________________________________________________________________________________________
-Version 0.1.1.00216
+Version 0.1.1.00218
 
 Tool to create an icon, cursor, or animated cursor file from a directory of images.
 

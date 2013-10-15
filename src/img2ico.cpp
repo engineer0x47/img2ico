@@ -33,7 +33,7 @@ CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 	SetOutputFileType(type);
 
 	m_Params.ImageCount = 0;
-	m_Params.ColorTransparent = PackColors(255,255,255,0,32);
+	m_Params.ColorTransparent = PackColors(0, 0xFF, 0xFF, 0xFF, 32);
 }
 
 CIMG2ICO::~CIMG2ICO()
@@ -102,43 +102,58 @@ void	CIMG2ICO::LoadImage(const char* filename)
 				}
 
 				// Build AND mask
-				uBuffer pix = {0};
-				unsigned __int8	p = 255;
+					// change code below to use iterators?
+				uBuffer_u t;
+				t.dword = 0;
 				int j = 0;
-					
-				for (int i = (img.Width * img.Height); i > 0; i--)
-				{
-					switch (img.BitsPerPixel)
-					{
-					case 1:
-						p = 0;	// Needs correct implementation
-						break;
-					case 2:
-						p = 0;	// Needs correct implementation
-						break;
-					case 4:
-						p = 0;	// Needs correct implementation
-						break;
-					case 8:
-						p = 0;	// Needs correct implementation
-						break;
-					case 16:
-						p = 0;	// Needs correct implementation
-						break;
-					case 24:
-							pix.byte[1] = img.pData[i];
-							pix.byte[2] = img.pData[i+1];
-							pix.byte[3] = img.pData[i+2];
-							p |= (pix.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
-						break;
-					case 32:
-						// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
-							p |= (img.pData[i+3] == 0) ? (1 << j) : 0;
-					}
+				int p = 0;
 
-					img.pData.push_back(p);
-					p = 0;
-					j = ( j >= 8) ? 0 : (j + 1);
+				switch (img.BitsPerPixel)
+				{
+				case 1:
+					for (int i = 0; i < img.ImgSize; i++)
+					{
+						img.pData.push_back((img.pData[i] ^ 255));
+					}
+					break;
+				case 4:
+					img.pData.push_back(0);	// Needs correct implementation
+					break;
+				case 8:
+					img.pData.push_back(0);	// Needs correct implementation
+					break;
+				case 16:
+					img.pData.push_back(0);	// Needs correct implementation
+					break;
+				case 24:
+					for (int i = 0; i < (img.Height * img.Width); i+=3)
+					{
+						t.byte[1] = static_cast<__uint8>(img.pData[i]);
+						t.byte[2] = static_cast<__uint8>(img.pData[i+1]);
+						t.byte[3] = static_cast<__uint8>(img.pData[i+2]);
+
+						p |= (m_Params.ColorTransparent == t.dword) ? (1 << j) : 0;
+						j++;
+
+						if ( j >= 7)
+						{
+							img.pData.push_back(p);
+							j = 0;
+						}
+					}
+					break;
+				case 32:
+					// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
+					for (int i = 0; i < (img.Height * img.Width); i+=4)
+					{
+						p |= (img.pData[i] == 0) ? (1 << j) : 0;
+
+						if ( j >= 7)
+						{
+							img.pData.push_back(p);
+							j = 0;
+						}
+					}
 				}
 
 				img.pData.shrink_to_fit();
@@ -259,12 +274,7 @@ void	CIMG2ICO::WriteOutputFile(void)
 
 					// Write Mask with 4-byte padding (need to implement the padding part)
 					
-					file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize], m_ImageArray[i].MaskSize);
-
-				/*	for (int j = 0; j < m_ImageArray[i].MaskSize; j++)
-					{
-						file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize + j], 1);
-					}	*/
+					file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize + 1], m_ImageArray[i].MaskSize);
 				}
 			}
 
@@ -492,7 +502,7 @@ void	CIMG2ICO::SetOutputFileName(const char* filename)
 
 void	CIMG2ICO::SetTransparentColor(const __int8 r, const __int8 g, const __int8 b)
 {
-	m_Params.ColorTransparent = PackColors8(r, g, b, 0, m_Params.BitsPerPixel);
+	m_Params.ColorTransparent = PackColors8(0, r, g, b, m_Params.BitsPerPixel);
 }
 
 void	CIMG2ICO::SetOutputFileType(const int type)

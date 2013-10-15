@@ -39,20 +39,18 @@ void	ZeroBuffer(uBuffer* buffer, const int numDwords)
 	}
 }
 
-__int32	PackColors(const __int8 r, const __int8 g, const __int8 b, const __int8 a, const __int8 bpp)
+__uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp)
 {
-	uBuffer packed;
+	uBuffer_u packed;
 	packed.dword = 0;
 
 	switch (bpp)
 	{
 	case 8:
-		packed.byte[3] = ( (r << 5) | (g << 2) | b);
+		packed.byte[3] = ( (r << 5) | (g << 2) | b );
 		break;
 	case 16:
-		packed.byte[3] = b;
-		packed.byte[2] = (r << 3);
-		packed.word[1] |= (g << 5);
+		packed.word[1] = ( (r << 11) | (g << 5) | b );
 		break;
 	case 24:
 		packed.byte[1] = r;
@@ -69,9 +67,9 @@ __int32	PackColors(const __int8 r, const __int8 g, const __int8 b, const __int8 
 	return packed.dword;
 }
 
-__int32	PackColors8(const __int8 r, const __int8 g, const __int8 b, const __int8 a, const __int8 bpp)
+__uint32	PackColors8(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp)
 {
-	uBuffer packed;
+	uBuffer_u packed;
 	packed.dword = 0;
 
 	switch (bpp)

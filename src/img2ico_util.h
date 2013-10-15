@@ -55,7 +55,7 @@ using std::vector;
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION 	"0.1.1.00216"
+#define IMG2ICO_VERSION 	"0.1.1.00218"
 
 #define IMG2ICO_SZ_MAXLEN	64
 #define IMG2ICO_PATH_MAXLEN	192
@@ -70,6 +70,9 @@ using std::vector;
 #define BMP_HEADER_SIZE		40
 
 #define data_block vector<__int8>
+typedef unsigned __int8		__uint8;
+typedef unsigned __int16	__uint16;
+typedef unsigned __int32	__uint32;
 
 enum IMG2ICO_ERROR
 {
@@ -100,9 +103,16 @@ enum I_TYPE
 
 union uBuffer
 {
-	__int8	byte[4];
-	__int16	word[2];
-	__int32	dword;
+	__int8		byte[4];
+	__int16		word[2];
+	__int32		dword;
+};
+
+union uBuffer_u
+{
+	__uint8		byte[4];
+	__uint16	word[2];
+	__uint32	dword;
 };
 
 enum chunkID
@@ -136,23 +146,23 @@ struct image
 
 struct sParameters
 {
-	__int32	FileType;			// ICO, ANI, CUR
-	__int32	ImageCount;			// Number of images for ICO / CUR, frames for ANI, 256 max
-	__int32	Width;				// Master width
-	__int32	Height;				// Master height
-	__int32	BitsPerPixel;		// Master BPP
-	__int32	ColorTransparent;	// Master transparent color, used for mask generation
-	__int32	Hcoord;				// For CUR / ANI hotspot only
-	__int32 Vcoord;				// For CUR / ANI hotspot only
-	__int32	DisplayRate;		// ANI Framerate
-	__int32	NumSteps;			// Only applies to ANI files if no 'seq ' chunk is present
+	__int32		FileType;			// ICO, ANI, CUR
+	__int32		ImageCount;			// Number of images for ICO / CUR, frames for ANI, 256 max
+	__int32		Width;				// Master width
+	__int32		Height;				// Master height
+	__int32		BitsPerPixel;		// Master BPP
+	__uint32	ColorTransparent;	// Master transparent color, used for mask generation
+	__int32		Hcoord;				// For CUR / ANI hotspot only
+	__int32		Vcoord;				// For CUR / ANI hotspot only
+	__int32		DisplayRate;		// ANI Framerate
+	__int32		NumSteps;			// Only applies to ANI files if no 'seq ' chunk is present
 };
 
 void	szToLcase(char* sz, const int size);
 void	ZeroBuffer(uBuffer* buffer, const int count);
 
 // If it is already RGB332 (8BPP) or RGB565 (16BPP) PackColors is much faster!
-__int32	PackColors(const __int8 r, const __int8 g, const __int8 b, const __int8 a, const __int8 bpp);		// Pack colors, range is already correct
-__int32	PackColors8(const __int8 r, const __int8 g, const __int8 b, const __int8 a, const __int8 bpp);		// Pack colors and convert to proper bpp
+__uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp);		// Pack colors, range is already correct
+__uint32	PackColors8(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp);		// Pack colors and convert to proper bpp
 
 #endif
