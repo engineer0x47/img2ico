@@ -31,14 +31,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class CIMG2ICO
 {
 private:
-	int				m_iErrorCode;
-	sParameters		m_Params;
-	string			m_szInPath;
-	string			m_szOutPath;
-	string			m_szName;
-
-	vector<image>				m_ImageArray;
-	multimap<chunkID, chunk>	m_ChunkList;
+	int									m_iErrorCode;
+	sParameters							m_Params;
+	string								m_szInPath;
+	string								m_szOutPath;
+	string								m_szName;
+	vector<image>						m_ImageArray;
+	vector<image>::iterator				m_itImageArray;
+	multimap<chunkID, chunk>			m_ChunkList;
+	multimap<chunkID, chunk>::iterator	m_itChunkList;
 
 	void	ReadConfigFile(void);
 	void	ReadInputFiles(void);

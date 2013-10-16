@@ -39,6 +39,14 @@ void	ZeroBuffer(uBuffer* buffer, const int numDwords)
 	}
 }
 
+void	ZeroBuffer(uBuffer_u* buffer, const int numDwords)
+{
+	for (int i = 0; i < numDwords; i++)
+	{
+		buffer[i].dword = 0;
+	}
+}
+
 __uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp)
 {
 	uBuffer_u packed;

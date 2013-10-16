@@ -34,6 +34,16 @@ CIMG2ICO::CIMG2ICO(const char* path, const char* name, int type)
 
 	m_Params.ImageCount = 0;
 	m_Params.ColorTransparent = PackColors(0, 0xFF, 0xFF, 0xFF, 32);
+	m_Params.Width = 0;
+	m_Params.Height = 0;
+	m_Params.BitsPerPixel = 0;
+	m_Params.Hcoord = 0;
+	m_Params.Vcoord = 0;
+	m_Params.DisplayRate = 30;
+	m_Params.NumSteps = 1;
+	
+	m_itImageArray = m_ImageArray.begin();
+	m_itChunkList = m_ChunkList.begin();
 }
 
 CIMG2ICO::~CIMG2ICO()
@@ -90,6 +100,11 @@ void	CIMG2ICO::LoadImage(const char* filename)
 			img.MaskSize				= img.Width * img.Height / 8;
 			img.FileSize				= BMP_HEADER_SIZE + img.ImgSize + img.MaskSize;		// header size + image size + andmask size
 
+			// Set File params to be the same as the largest image
+			m_Params.Width = (img.Width > m_Params.Width) ? img.Width : m_Params.Width;
+			m_Params.Height = (img.Height > m_Params.Height) ? img.Height : m_Params.Height;
+			m_Params.BitsPerPixel = (img.BitsPerPixel > m_Params.BitsPerPixel) ? img.BitsPerPixel : m_Params.BitsPerPixel;
+
 			if (buffer[8].dword == BMP_BI_RGB)
 			{
 				imagefile.seekg(offset, imagefile.beg);
@@ -102,61 +117,58 @@ void	CIMG2ICO::LoadImage(const char* filename)
 				}
 
 				// Build AND mask
-					// change code below to use iterators?
-				uBuffer_u t;
+				__uint8		p = 0;
+				uBuffer_u	t;
 				t.dword = 0;
-				int j = 0;
-				int p = 0;
 
-				switch (img.BitsPerPixel)
+				for (int i = 0; i <= (img.MaskSize + 1); i++)
 				{
-				case 1:
-					for (int i = 0; i < img.ImgSize; i++)
-					{
-						img.pData.push_back((img.pData[i] ^ 255));
-					}
-					break;
-				case 4:
-					img.pData.push_back(0);	// Needs correct implementation
-					break;
-				case 8:
-					img.pData.push_back(0);	// Needs correct implementation
-					break;
-				case 16:
-					img.pData.push_back(0);	// Needs correct implementation
-					break;
-				case 24:
-					for (int i = 0; i < (img.Height * img.Width); i+=3)
-					{
-						t.byte[1] = static_cast<__uint8>(img.pData[i]);
-						t.byte[2] = static_cast<__uint8>(img.pData[i+1]);
-						t.byte[3] = static_cast<__uint8>(img.pData[i+2]);
-
-						p |= (m_Params.ColorTransparent == t.dword) ? (1 << j) : 0;
-						j++;
-
-						if ( j >= 7)
-						{
-							img.pData.push_back(p);
-							j = 0;
-						}
-					}
-					break;
-				case 32:
-					// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
-					for (int i = 0; i < (img.Height * img.Width); i+=4)
-					{
-						p |= (img.pData[i] == 0) ? (1 << j) : 0;
-
-						if ( j >= 7)
-						{
-							img.pData.push_back(p);
-							j = 0;
-						}
-					}
+					img.pData.push_back(0);
 				}
 
-				img.pData.shrink_to_fit();
+				/*
+				for (int i = 0; i < img.MaskSize; i++)
+				{
+					switch (img.BitsPerPixel)
+					{
+					case 1:
+						img.pData.push_back((img.pData[i] ^ 255));
+						break;
+					case 4:
+						img.pData.push_back(0);	// Needs correct implementation
+						break;
+					case 8:
+						img.pData.push_back(0);	// Needs correct implementation
+						break;
+					case 16:
+						img.pData.push_back(0);	// Needs correct implementation
+						break;
+					case 24:
+						for (int j = 0; j <= 7; j++)
+						{
+							t.byte[1] = static_cast<__uint8>(img.pData[(i*8)+(j*3)]);
+							t.byte[2] = static_cast<__uint8>(img.pData[(i*8)+(j*3)+1]);
+							t.byte[3] = static_cast<__uint8>(img.pData[(i*8)+(j*3)+2]);
+							p |= (t.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
+						}
+
+						img.pData.push_back(p);
+						p = 0;
+						break;
+					case 32:
+						// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
+						for (int j = 0; j < 8; j++)
+						{
+							t.byte[1] = static_cast<__uint8>(img.pData[i+(j*4)]);
+							p |= (t.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
+						}
+
+						img.pData.push_back(p);
+						p = 0;
+					}
+				}*/
+
+				//img.pData.shrink_to_fit();
 				m_ImageArray.push_back(img);
 				m_Params.ImageCount++;
 			}

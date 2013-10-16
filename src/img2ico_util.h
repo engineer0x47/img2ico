@@ -55,7 +55,7 @@ using std::vector;
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION 	"0.1.1.00218"
+#define IMG2ICO_VERSION 	"0.1.1.00219"
 
 #define IMG2ICO_SZ_MAXLEN	64
 #define IMG2ICO_PATH_MAXLEN	192
@@ -159,7 +159,8 @@ struct sParameters
 };
 
 void	szToLcase(char* sz, const int size);
-void	ZeroBuffer(uBuffer* buffer, const int count);
+void	ZeroBuffer(uBuffer* buffer, const int numDwords);
+void	ZeroBuffer(uBuffer_u* buffer, const int numDwords);
 
 // If it is already RGB332 (8BPP) or RGB565 (16BPP) PackColors is much faster!
 __uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp);		// Pack colors, range is already correct
