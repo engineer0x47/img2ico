@@ -16,6 +16,7 @@ Only one cursor hotspot per file is supported.
 
 Mipmap generation will make all file sizes starting with the initial size down on the list below:
 (m for mipmap)
+
           SIZE
        m  256x256
        m  128x128
