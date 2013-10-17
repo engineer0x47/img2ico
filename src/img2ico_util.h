@@ -55,16 +55,16 @@ using std::vector;
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION 	"0.1.1.00219"
+#define IMG2ICO_VERSION 	"0.2.0.00221"
 
 #define IMG2ICO_SZ_MAXLEN	64
 #define IMG2ICO_PATH_MAXLEN	192
 #define IMG2ICO_MAX_DIM		256			// Maximum image size of 256x256
 #define IMG2ICO_MAX_BPP		32
 
-#define PNG_HEADER_DWORD	0x89504E47
-#define PNG_CHUNK_IHDR		0x49484452
-#define PNG_CHUNK_PLTE		0x504C5445
+#define PNG_HEADER_DWORD	0x474E5089	// Little-Endian encoding
+#define PNG_CHUNK_IHDR		0x52444849	// Little Endian encoding
+#define PNG_CHUNK_PLTE		0x45544C50	// Little Endian encoding
 #define BMP_HEADER_WORD		0x4D42
 #define BMP_BI_RGB			0
 #define BMP_HEADER_SIZE		40

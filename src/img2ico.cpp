@@ -60,10 +60,10 @@ int		CIMG2ICO::ConvertFiles(void)
 
 void	CIMG2ICO::LoadImage(const char* filename)
 {
-	uBuffer	buffer[14];
+	uBuffer	buffer[11];
 	fstream imagefile;
 
-	ZeroBuffer(&buffer[0], 14);
+	ZeroBuffer(&buffer[0], 11);
 	imagefile.open(filename, ios::in | ios::binary);
 
 	if (imagefile.is_open() == true)
@@ -71,16 +71,16 @@ void	CIMG2ICO::LoadImage(const char* filename)
 		image img;
 		img.pData.clear();
 
-		imagefile.read(&buffer[0].byte[0], 10);
-		imagefile.read(&buffer[3].byte[0], 44);
-
+		imagefile.read(&buffer[0].byte[0], 4);
+		
 		if (buffer[0].dword == PNG_HEADER_DWORD)
 		{
+			// reread imagefile due to offset error with buffer (caused by need to read BMP files)
+			imagefile.seekg(ios::beg);
+			imagefile.read(&buffer[0].byte[0], 32);
+
 			if (buffer[3].dword == PNG_CHUNK_IHDR)
 			{
-				// Load image parameters
-				// dwords 4 and 5 are width and height
-				// dword 6 byte 0 is bit depth (per color, per pixel), byte 1 is color type 
 				img.Width				= buffer[4].dword;
 				img.Height				= buffer[5].dword;
 
@@ -104,14 +104,21 @@ void	CIMG2ICO::LoadImage(const char* filename)
 				}
 
 				// Load entire PNG into m_ImageArray<>->pData, Windows doesn't like formats other than ARGB32
-				if (img.BitsPerPixel != 32)
+				if (img.BitsPerPixel == 32)
 				{
 					img.InputFileType = L_PNG;
+					img.ImgSize = 0;
+					imagefile.seekg(ios::beg);
+					img.pData.reserve(8192);
 
-					// load image
-					img.pData.push_back(0);		// temporary code
-					img.ImgSize = 1;
+					//	Read each byte one at a time until end of file
+					while (!imagefile.eof())
+					{
+						img.pData.push_back(imagefile.get());
+						img.ImgSize++;
+					}
 
+					img.pData.shrink_to_fit();
 					m_ImageArray.push_back(img);
 					m_Params.ImageCount++;
 				}
@@ -127,12 +134,14 @@ void	CIMG2ICO::LoadImage(const char* filename)
 		}
 		else if (buffer[0].word[0] == BMP_HEADER_WORD)
 		{
-			__int32 offset				= buffer[3].dword;
+			imagefile.read(&buffer[0].byte[0], 44);
+
+			__int32 offset				= buffer[0].dword;
 			img.InputFileType			= L_BMP;
-			img.Width					= (buffer[5].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[5].dword;
-			img.Height					= (buffer[6].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[6].dword;
+			img.Width					= (buffer[2].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[2].dword;
+			img.Height					= (buffer[3].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[3].dword;
 			img.NumPlanes				= 1;
-			img.BitsPerPixel			= (buffer[7].word[1] > IMG2ICO_MAX_BPP) ? IMG2ICO_MAX_BPP : buffer[7].word[1];
+			img.BitsPerPixel			= (buffer[4].word[1] > IMG2ICO_MAX_BPP) ? IMG2ICO_MAX_BPP : buffer[4].word[1];
 			img.ImgSize					= img.Width * img.Height * (img.BitsPerPixel / 8);
 			img.MaskSize				= img.Width * img.Height / 8;
 			img.FileSize				= BMP_HEADER_SIZE + img.ImgSize + img.MaskSize;		// header size + image size + andmask size
@@ -142,9 +151,9 @@ void	CIMG2ICO::LoadImage(const char* filename)
 			m_Params.Height = (img.Height > m_Params.Height) ? img.Height : m_Params.Height;
 			m_Params.BitsPerPixel = (img.BitsPerPixel > m_Params.BitsPerPixel) ? img.BitsPerPixel : m_Params.BitsPerPixel;
 
-			if (buffer[8].dword == BMP_BI_RGB)
+			if (buffer[5].dword == BMP_BI_RGB)
 			{
-				imagefile.seekg(offset, imagefile.beg);
+				imagefile.seekg(offset, ios::beg);
 				img.pData.reserve(img.ImgSize + img.MaskSize);
 
 				//	Read each byte one at a time
@@ -205,7 +214,7 @@ void	CIMG2ICO::LoadImage(const char* filename)
 					}
 				}*/
 
-				//img.pData.shrink_to_fit();
+				img.pData.shrink_to_fit();
 				m_ImageArray.push_back(img);
 				m_Params.ImageCount++;
 			}
@@ -264,27 +273,20 @@ void	CIMG2ICO::WriteOutputFile(void)
 			switch (m_Params.FileType)
 			{
 			case T_ANI:
-				//file << m_sANI_Header;
-					// Write frames
-				//m_iErrorCode |= m_ANI_File.WriteOutputFileANI(m_szOutPath.data(), m_szName.data());
-				//if (m_bSequenceData == true)
-				//{
-					// write sequence data
-				//}
+				// Write Header chunk
+				// Write Image chunks
+				// Write sequence chunk
 				m_iErrorCode += I2IE_FILE_UNSUPPORTED;
 			break;
 			default:
 			case T_CUR:
 			case T_ICO:
+					__int32 offset = 6 + (16 * m_Params.ImageCount);
 					buffer[0].word[1] = m_Params.FileType;
 					buffer[1].word[0] = m_Params.ImageCount;
 					file.write(&buffer[0].byte[0], 6);
 
-					__int32 offset = 6 + (16 * m_Params.ImageCount);
-
-					// Some documentation (daubnet.com) specifies CUR files with a different dirEntry size than ICO
-
-					// Write Directory Entries
+					// Write Directory Entries		Some documentation (daubnet.com) specifies CUR files with a different dirEntry size than ICO (32 vs 16)
 					for (int i = 0; i < m_Params.ImageCount; i++)
 					{
 						buffer[0].byte[0]	= m_ImageArray[i].Width;
@@ -496,9 +498,6 @@ void	CIMG2ICO::ReadInputFiles(void)
 	
 	// Find out how many images are in the directory (PNG or BMP only) and add them to the list
 
-
-
-	LoadImage("0.png");
 
 }
 
