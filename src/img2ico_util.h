@@ -94,6 +94,13 @@ enum F_TYPE
 	T_ANI = 3
 };
 
+enum L_TYPE
+{
+	L_UNSUPPORTED	= 0,
+	L_BMP			= 1,
+	L_PNG			= 2
+};
+
 enum I_TYPE
 {
 	I_RAW		= 0,
@@ -134,6 +141,7 @@ struct chunk
 
 struct image
 {
+	__int32	InputFileType;
 	__int32	Width;
 	__int32	Height;
 	__int16	NumPlanes;

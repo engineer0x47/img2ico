@@ -76,22 +76,59 @@ void	CIMG2ICO::LoadImage(const char* filename)
 
 		if (buffer[0].dword == PNG_HEADER_DWORD)
 		{
-			if (buffer[2].dword == PNG_CHUNK_IHDR)
+			if (buffer[3].dword == PNG_CHUNK_IHDR)
 			{
 				// Load image parameters
-			}
+				// dwords 4 and 5 are width and height
+				// dword 6 byte 0 is bit depth (per color, per pixel), byte 1 is color type 
+				img.Width				= buffer[4].dword;
+				img.Height				= buffer[5].dword;
 
-			if (buffer[2].dword == PNG_CHUNK_PLTE)
+				switch (buffer[6].byte[1])
+				{
+				case 0:
+				case 3:
+					img.BitsPerPixel		= buffer[6].byte[0];
+					break;
+				case 2:
+					img.BitsPerPixel		= buffer[6].byte[0] * 3;
+					break;
+				case 4:
+					img.BitsPerPixel		= buffer[6].byte[0] * 2;
+					break;
+				case 6:
+					img.BitsPerPixel		= buffer[6].byte[0] * 4;
+					break;
+				default:
+					img.BitsPerPixel = 0;
+				}
+
+				// Load entire PNG into m_ImageArray<>->pData, Windows doesn't like formats other than ARGB32
+				if (img.BitsPerPixel != 32)
+				{
+					img.InputFileType = L_PNG;
+
+					// load image
+					img.pData.push_back(0);		// temporary code
+					img.ImgSize = 1;
+
+					m_ImageArray.push_back(img);
+					m_Params.ImageCount++;
+				}
+				else
+				{
+					m_iErrorCode |= I2IE_FILE_UNSUPPORTED;
+				}
+			}
+			else
 			{
-				// Load image palette
+				m_iErrorCode |= I2IE_FILE_UNSUPPORTED;
 			}
-
-			// Load entire PNG into m_ImageArray<>->pData
-
 		}
 		else if (buffer[0].word[0] == BMP_HEADER_WORD)
 		{
 			__int32 offset				= buffer[3].dword;
+			img.InputFileType			= L_BMP;
 			img.Width					= (buffer[5].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[5].dword;
 			img.Height					= (buffer[6].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[6].dword;
 			img.NumPlanes				= 1;
@@ -174,6 +211,7 @@ void	CIMG2ICO::LoadImage(const char* filename)
 			}
 			else
 			{
+				m_iErrorCode |= I2IE_FILE_UNSUPPORTED;
 				m_iErrorCode |= I2IE_FILE_COMPRESSION;
 			}
 		}
@@ -238,56 +276,65 @@ void	CIMG2ICO::WriteOutputFile(void)
 			default:
 			case T_CUR:
 			case T_ICO:
-				buffer[0].word[1] = m_Params.FileType;
-				buffer[1].word[0] = m_Params.ImageCount;
-				file.write(&buffer[0].byte[0], 6);
+					buffer[0].word[1] = m_Params.FileType;
+					buffer[1].word[0] = m_Params.ImageCount;
+					file.write(&buffer[0].byte[0], 6);
 
-				__int32 offset = 6 + (16 * m_Params.ImageCount);
+					__int32 offset = 6 + (16 * m_Params.ImageCount);
 
-				// Some documentation (daubnet.com) specifies CUR files with a different dirEntry size than ICO
+					// Some documentation (daubnet.com) specifies CUR files with a different dirEntry size than ICO
 
-				// Write Directory Entries
-				for (int i = 0; i < m_Params.ImageCount; i++)
-				{
-					buffer[0].byte[0]	= m_ImageArray[i].Width;
-					buffer[0].byte[1]	= m_ImageArray[i].Height;
-					buffer[0].byte[2]	= ( (m_ImageArray[i].BitsPerPixel == 1) || (m_ImageArray[i].BitsPerPixel == 4) ) ? (1 << m_ImageArray[i].BitsPerPixel) : 0;
-					buffer[0].byte[3]	= 0;
-					buffer[1].word[0]	= 0;	// For some reason this instance of "ColorPlanes" is zero in MS-generated files?!?
-					buffer[1].word[1]	= m_ImageArray[i].BitsPerPixel;
-					buffer[2].dword		= m_ImageArray[i].FileSize;
-					buffer[3].dword		= offset;
-
-					file.write(&buffer[0].byte[0], 16 );
-
-					if (i > 0)
+					// Write Directory Entries
+					for (int i = 0; i < m_Params.ImageCount; i++)
 					{
-						offset += m_ImageArray[i-1].FileSize;
+						buffer[0].byte[0]	= m_ImageArray[i].Width;
+						buffer[0].byte[1]	= m_ImageArray[i].Height;
+						buffer[0].byte[2]	= ( (m_ImageArray[i].BitsPerPixel == 1) || (m_ImageArray[i].BitsPerPixel == 4) ) ? (1 << m_ImageArray[i].BitsPerPixel) : 0;
+						buffer[0].byte[3]	= 0;
+						buffer[1].word[0]	= 0;	// For some reason this instance of "ColorPlanes" is zero in MS-generated files?!?
+						buffer[1].word[1]	= m_ImageArray[i].BitsPerPixel;
+						buffer[2].dword		= m_ImageArray[i].FileSize;
+						buffer[3].dword		= offset;
+
+						file.write(&buffer[0].byte[0], 16 );
+
+						if (i > 0)
+						{
+							offset += m_ImageArray[i-1].FileSize;
+						}
 					}
-				}
 
-				// Write images
-				for (int i = 0; i < m_Params.ImageCount; i++)
-				{
-					buffer[0].dword		= BMP_HEADER_SIZE;
-					buffer[1].dword		= m_ImageArray[i].Width;
-					buffer[2].dword		= m_ImageArray[i].Height * 2;
-					buffer[3].word[0]	= m_ImageArray[i].NumPlanes;
-					buffer[3].word[1]	= m_ImageArray[i].BitsPerPixel;
-					buffer[4].dword		= BMP_BI_RGB;
-					buffer[5].dword		= m_ImageArray[i].ImgSize;
-					buffer[6].dword		= 0;
-					buffer[7].dword		= 0;
-					buffer[8].dword		= 0;
-					buffer[9].dword		= 0;
+					// Write images
+					for (int i = 0; i < m_Params.ImageCount; i++)
+					{
+						if (m_ImageArray[0].InputFileType == L_BMP)
+						{
+							buffer[0].dword		= BMP_HEADER_SIZE;
+							buffer[1].dword		= m_ImageArray[i].Width;
+							buffer[2].dword		= m_ImageArray[i].Height * 2;
+							buffer[3].word[0]	= m_ImageArray[i].NumPlanes;
+							buffer[3].word[1]	= m_ImageArray[i].BitsPerPixel;
+							buffer[4].dword		= BMP_BI_RGB;
+							buffer[5].dword		= m_ImageArray[i].ImgSize;
+							buffer[6].dword		= 0;
+							buffer[7].dword		= 0;
+							buffer[8].dword		= 0;
+							buffer[9].dword		= 0;
 
-					file.write(&buffer[0].byte[0], 40);									// Write Header
-					file.write(&m_ImageArray[i].pData[0], m_ImageArray[i].ImgSize);		// Write Image
+							file.write(&buffer[0].byte[0], 40);									// Write Header
+							file.write(&m_ImageArray[i].pData[0], m_ImageArray[i].ImgSize);		// Write Image
 
-					// Write Mask with 4-byte padding (need to implement the padding part)
+							// Write Mask with 4-byte padding (need to implement the padding part)
 					
-					file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize + 1], m_ImageArray[i].MaskSize);
-				}
+							file.write(&m_ImageArray[i].pData[m_ImageArray[i].ImgSize + 1], m_ImageArray[i].MaskSize);
+						}
+
+						if (m_ImageArray[0].InputFileType == L_PNG)
+						{
+							file.write(&m_ImageArray[i].pData[0], m_ImageArray[i].ImgSize);
+						}
+
+					}
 			}
 
 			file.close();
@@ -451,7 +498,7 @@ void	CIMG2ICO::ReadInputFiles(void)
 
 
 
-	LoadImage("0.bmp");
+	LoadImage("0.png");
 
 }
 
