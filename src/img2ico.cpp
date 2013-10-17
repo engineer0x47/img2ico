@@ -76,13 +76,21 @@ void	CIMG2ICO::LoadImage(const char* filename)
 		if (buffer[0].dword == PNG_HEADER_DWORD)
 		{
 			// reread imagefile due to offset error with buffer (caused by need to read BMP files)
+			ZeroBuffer(&buffer[0], 11);
 			imagefile.seekg(ios::beg);
 			imagefile.read(&buffer[0].byte[0], 32);
 
 			if (buffer[3].dword == PNG_CHUNK_IHDR)
 			{
-				img.Width				= buffer[4].dword;
-				img.Height				= buffer[5].dword;
+				img.Width	= SwapEndian32(buffer[4].dword);
+				img.Height	= SwapEndian32(buffer[5].dword);
+
+				if ( (img.Width > 256) || (img.Height > 256) )
+				{
+					// Image file is too large, this program does not support larger files.
+					m_iErrorCode |= I2IE_FILE_UNSUPPORTED;
+					return;
+				}
 
 				switch (buffer[6].byte[1])
 				{
@@ -121,6 +129,11 @@ void	CIMG2ICO::LoadImage(const char* filename)
 					img.pData.shrink_to_fit();
 					m_ImageArray.push_back(img);
 					m_Params.ImageCount++;
+					
+					#ifdef _DEBUG
+					cout << "loaded file: " << filename << endl;
+					#endif
+
 				}
 				else
 				{
@@ -134,9 +147,12 @@ void	CIMG2ICO::LoadImage(const char* filename)
 		}
 		else if (buffer[0].word[0] == BMP_HEADER_WORD)
 		{
+			ZeroBuffer(&buffer[0], 11);
+			imagefile.seekg(ios::beg + 10);
 			imagefile.read(&buffer[0].byte[0], 44);
 
 			__int32 offset				= buffer[0].dword;
+
 			img.InputFileType			= L_BMP;
 			img.Width					= (buffer[2].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[2].dword;
 			img.Height					= (buffer[3].dword > IMG2ICO_MAX_DIM) ? IMG2ICO_MAX_DIM : buffer[3].dword;
@@ -213,6 +229,10 @@ void	CIMG2ICO::LoadImage(const char* filename)
 						p = 0;
 					}
 				}*/
+
+				#ifdef _DEBUG
+				cout << "loaded file: " << filename << endl;
+				#endif
 
 				img.pData.shrink_to_fit();
 				m_ImageArray.push_back(img);

@@ -55,7 +55,7 @@ using std::vector;
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION 	"0.2.0.00221"
+#define IMG2ICO_VERSION 	"0.2.0.00222"
 
 #define IMG2ICO_SZ_MAXLEN	64
 #define IMG2ICO_PATH_MAXLEN	192
@@ -166,9 +166,11 @@ struct sParameters
 	__int32		NumSteps;			// Only applies to ANI files if no 'seq ' chunk is present
 };
 
-void	szToLcase(char* sz, const int size);
-void	ZeroBuffer(uBuffer* buffer, const int numDwords);
-void	ZeroBuffer(uBuffer_u* buffer, const int numDwords);
+void		szToLcase(char* sz, const int size);
+void		ZeroBuffer(uBuffer* buffer, const int numDwords);
+void		ZeroBuffer(uBuffer_u* buffer, const int numDwords);
+__uint32	SwapEndian32(const __uint32 c);
+__uint16	SwapEndian16(const __uint16 c);
 
 // If it is already RGB332 (8BPP) or RGB565 (16BPP) PackColors is much faster!
 __uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp);		// Pack colors, range is already correct

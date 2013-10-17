@@ -47,6 +47,30 @@ void	ZeroBuffer(uBuffer_u* buffer, const int numDwords)
 	}
 }
 
+__uint32	SwapEndian32(const __uint32 c)
+{
+	uBuffer_u t[2];
+	t[0].dword = c;
+
+	t[1].byte[0] = t[0].byte[3];
+	t[1].byte[1] = t[0].byte[2];
+	t[1].byte[2] = t[0].byte[1];
+	t[1].byte[3] = t[0].byte[0];
+	
+	return t[1].dword;
+}
+
+__uint16	SwapEndian16(const __uint16 c)
+{
+	uBuffer_u t;
+	t.word[0] = c;
+
+	t.byte[0] = t.byte[3];
+	t.byte[1] = t.byte[2];
+
+	return t.word[1];
+}
+
 __uint32	PackColors(const __uint8 a, const __uint8 r, const __uint8 g, const __uint8 b, const __uint8 bpp)
 {
 	uBuffer_u packed;
