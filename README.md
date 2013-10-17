@@ -1,6 +1,6 @@
                                img2ico
 ___________________________________________________________________________________________
-Version 0.2.0.00220
+Version 0.2.0.00221
 
 Tool to create an icon, cursor, or animated cursor file from a directory of images.
 
@@ -11,6 +11,8 @@ The default settings will create an icon using images found in the selected dire
 The maximum size for path variables is 192 characters (via command line)
 The maximum size for name variables is 64 characters (including config file)
 The maximum size for icons is to be 256 by 256, and 32-bit color.
+
+PNG files are supported (ARGB 32-bit only due to ICO container format design).
 
 Only one cursor hotspot per file is supported.
 

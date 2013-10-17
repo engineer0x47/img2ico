@@ -47,6 +47,8 @@ int		main(int argc, char* argv[])
 	CIMG2ICO	converter;
 
 	ParseCommandLineOptions(&converter, argc, argv);
+	converter.LoadImage("0.png");
+	converter.LoadImage("0.bmp");
 	converter.ConvertFiles();
 	
 	if (!bPipe)
