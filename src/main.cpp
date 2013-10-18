@@ -30,8 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "img2ico.h"
+#include "arg_parser.h"
 #include "..\res\resource.h"
 
+using namespace argp;
 using std::cin;
 using std::cout;
 using std::string;
@@ -45,12 +47,32 @@ int		main(int argc, char* argv[])
 {
 	bool		bPipe = true;		// Set false if the user intends to enable "wait for key" message
 	CIMG2ICO	converter;
+	CArgParser	parser;
 
-	ParseCommandLineOptions(&converter, argc, argv);
+	// Setup argument parser
+	parser.AddDefaultOptions();
+	
+
+
+
+	parser.ParseArgs(argc, argv);
+	
+
+	// Perform operations
+
+
+
+
 	converter.LoadImage("0.png");
 	converter.LoadImage("0.bmp");
 	converter.ConvertFiles();
 	
+
+
+
+
+
+
 	if (!bPipe)
 	{
 		cout << "Press [ENTER] to exit program...";
@@ -115,6 +137,8 @@ void	PrintVersionInformation(void)
 	cout << "\nIMG2ICO Verison " << IMG2ICO_VERSION << endl;
 }
 
+
+/*
 void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 {
 	char			szWorkingDir[FILENAME_MAX];
@@ -143,7 +167,7 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 
 
 
-	/*
+	
 			char	cWaste;
 		char	cParam[IMG2ICO_SZ_MAXLEN];
 		char	cValue[IMG2ICO_SZ_MAXLEN];
@@ -250,14 +274,7 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 		}
 
 
-
-
-
-
-	*/
-
-	
-/*	for (int i=1; i<argc; i++)
+	for (int i=1; i<argc; i++)
 	{
 		if ((argv[i] == "-h") || (argv[i] == "--help") )
 		{
@@ -348,5 +365,5 @@ void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[])
 	else
 	{
 		PrintHelpInformation();
-	} */
-}
+	}
+} */

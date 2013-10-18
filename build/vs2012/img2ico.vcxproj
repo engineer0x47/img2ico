@@ -164,6 +164,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\arg_parser.cpp" />
     <ClCompile Include="..\..\src\dllmain.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_DLL|Win32'">false</ExcludedFromBuild>
@@ -177,6 +178,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\res\resource.h" />
+    <ClInclude Include="..\..\src\arg_parser.h" />
     <ClInclude Include="..\..\src\img2ico.h" />
     <ClInclude Include="..\..\src\img2ico_dll.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>

@@ -55,7 +55,7 @@ using std::vector;
 #define SZ_PATHSEPARATOR "/\"
 #endif
 
-#define IMG2ICO_VERSION 	"0.2.0.00222"
+#define IMG2ICO_VERSION 	"0.2.0.00225"
 
 #define IMG2ICO_SZ_MAXLEN	64
 #define IMG2ICO_PATH_MAXLEN	192
