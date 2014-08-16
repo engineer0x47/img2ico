@@ -1,6 +1,6 @@
                                img2ico
 ___________________________________________________________________________________________
-Version 0.2.0.00225
+Version 0.2.0.00229
 
 Tool to create an icon, cursor, or animated cursor file from a directory of images.
 
@@ -12,16 +12,15 @@ The maximum size for path variables is 192 characters (via command line)
 The maximum size for name variables is 64 characters (including config file)
 The maximum size for icons is 256 by 256, and 32-bit color.
 
-PNG files are supported (ARGB 32-bit only due to ICO container format design).  Transparency 
-Masks are not currently supported in BMP files.  The compiled EXE only works with files named
-"0.png" or "0.bmp" in the EXE directory for now.  This will change when the command line is 
-fully supported (Version 0.3.0).
+Transparency Masks are not currently supported in BMP files.  The compiled EXE only works
+with files named "0.bmp" in the EXE directory for now.  This will change when the command
+line is fully supported (Version 0.3.0).
 
-Only one cursor hotspot per file is supported (this may change if there is a need for more than
-one cursor per file).
+Only one cursor hotspot per file is supported (this may change if there is a need for more
+than one cursor per file).
 
-Mipmap generation will make all file sizes starting with the initial size down on the list below:
-(m for mipmap)
+Mipmap generation will make all file sizes starting with the initial size down on the list
+below (m for mipmap):
 
           SIZE
        m  256x256

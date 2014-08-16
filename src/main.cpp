@@ -41,7 +41,7 @@ using std::vector;
 
 void	PrintHelpInformation(void);
 void	PrintVersionInformation(void);
-void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[]);
+//void	ParseCommandLineOptions(CIMG2ICO* img2ico, int argc, char* argv[]);
 
 int		main(int argc, char* argv[])
 {
@@ -63,7 +63,7 @@ int		main(int argc, char* argv[])
 
 
 
-	converter.LoadImage("0.png");
+//	converter.LoadImage("0.png");
 	converter.LoadImage("0.bmp");
 	converter.ConvertFiles();
 	

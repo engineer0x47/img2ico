@@ -183,13 +183,8 @@ void	CIMG2ICO::LoadImage(const char* filename)
 				uBuffer_u	t;
 				t.dword = 0;
 
-				for (int i = 0; i <= (img.MaskSize + 1); i++)
-				{
-					img.pData.push_back(0);
-				}
-
-				/*
-				for (int i = 0; i < img.MaskSize; i++)
+				
+				for (int i = 0; i <= img.MaskSize; i++)
 				{
 					switch (img.BitsPerPixel)
 					{
@@ -206,29 +201,36 @@ void	CIMG2ICO::LoadImage(const char* filename)
 						img.pData.push_back(0);	// Needs correct implementation
 						break;
 					case 24:
+						/*p = 0;
 						for (int j = 0; j <= 7; j++)
 						{
 							t.byte[1] = static_cast<__uint8>(img.pData[(i*8)+(j*3)]);
 							t.byte[2] = static_cast<__uint8>(img.pData[(i*8)+(j*3)+1]);
 							t.byte[3] = static_cast<__uint8>(img.pData[(i*8)+(j*3)+2]);
-							p |= (t.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
+							p |= (t.dword == m_Params.ColorTransparent) ? (1 << (j) ) : 0;
 						}
 
 						img.pData.push_back(p);
-						p = 0;
+						*/
+
+						img.pData.push_back(0);
+
 						break;
 					case 32:
 						// Take data from the Alpha channel, iterate through 8 pixels each pass (monochrome bitmap creation)
-						for (int j = 0; j < 8; j++)
+					/*	for (int j = 0; j < 8; j++)
 						{
 							t.byte[1] = static_cast<__uint8>(img.pData[i+(j*4)]);
 							p |= (t.dword == m_Params.ColorTransparent) ? (1 << j) : 0;
 						}
 
 						img.pData.push_back(p);
-						p = 0;
+						p = 0;*/
+
+
+						img.pData.push_back(0);
 					}
-				}*/
+				}
 
 				#ifdef _DEBUG
 				cout << "loaded file: " << filename << endl;
